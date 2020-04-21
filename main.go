@@ -17,11 +17,12 @@ const (
 )
 
 type Lamplighter struct {
-	Location Location
+	LifxToken []byte
+	Location  Location
 }
 
 func (l Lamplighter) Run() {
-	err := lamp()
+	err := lightLamp(l.LifxToken)
 	if err != nil {
 		log.Printf("ERR: %s\n", err)
 	}
@@ -38,35 +39,26 @@ func (l Lamplighter) Next(now time.Time) time.Time {
 	return sunset
 }
 
-func lamp() error {
-	b, err := ioutil.ReadFile(tokenFile)
-	if err != nil {
-		return fmt.Errorf("read token file failed: %w", err)
-	}
-	token := bytes.TrimRight(b, "\n")
-
-	err = lightLamp(token)
-	if err != nil {
-		return fmt.Errorf("light lamp failed: %w", err)
-	}
-
-	return nil
-}
-
 func main() {
-	b, err := ioutil.ReadFile(locationFile)
+	tokenBytes, err := ioutil.ReadFile(tokenFile)
+	if err != nil {
+		log.Fatalf("read token file failed: %w", err)
+	}
+
+	locationBytes, err := ioutil.ReadFile(locationFile)
 	if err != nil {
 		log.Fatalf("read location file failed: %s", err)
 	}
 
 	var location Location
-	err = json.Unmarshal(b, &location)
+	err = json.Unmarshal(locationBytes, &location)
 	if err != nil {
 		log.Printf("unmarshal location: %s", err)
 	}
 
 	lamp := Lamplighter{
-		Location: location,
+		LifxToken: bytes.TrimRight(tokenBytes, "\n"),
+		Location:  location,
 	}
 
 	cron := cron.New()
