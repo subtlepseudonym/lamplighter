@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"time"
@@ -36,6 +35,7 @@ func (l Lamplighter) Next(now time.Time) time.Time {
 		return time.Time{}
 	}
 
+	log.Printf("next lamp: %s", sunset.Local().Format(time.RFC3339))
 	return sunset
 }
 
@@ -63,6 +63,5 @@ func main() {
 
 	cron := cron.New()
 	cron.Schedule(lamp, lamp)
-
 	cron.Run()
 }
