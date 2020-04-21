@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/robfig/cron/v3"
@@ -50,6 +51,15 @@ func (l Lamplighter) Next(now time.Time) time.Time {
 }
 
 func main() {
+	// manually set local timezone for docker container
+	if tz := os.Getenv("TZ"); tz != "" {
+		loc, err := time.LoadLocation(tz)
+		if err != nil {
+			log.Fatalf("load tz location: %s", err)
+		}
+		time.Local = loc
+	}
+
 	tokenBytes, err := ioutil.ReadFile(tokenFile)
 	if err != nil {
 		log.Fatalf("read token file failed: %s", err)
