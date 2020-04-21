@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	tokenFile    = "lifx.token"
-	locationFile = "home.loc"
+	tokenFile    = "secrets/lifx.token"
+	locationFile = "secrets/home.loc"
 )
 
 type Lamplighter struct {
