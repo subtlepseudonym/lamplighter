@@ -35,7 +35,7 @@ func getSunset(location Location, date time.Time) (time.Time, error) {
 		return time.Time{}, fmt.Errorf("new request: %w", err)
 	}
 
-	res, err := http.DefaultClient.Do(req)
+	res, err := InsecureClient.Do(req)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("sunset request: %w", err)
 	}

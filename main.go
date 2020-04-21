@@ -2,9 +2,11 @@ package main
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"time"
 
 	"github.com/robfig/cron/v3"
@@ -14,6 +16,14 @@ const (
 	tokenFile    = "secrets/lifx.token"
 	locationFile = "secrets/home.loc"
 )
+
+var InsecureClient = &http.Client{
+	Transport: &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+		},
+	},
+}
 
 type Lamplighter struct {
 	LifxToken []byte
@@ -42,7 +52,7 @@ func (l Lamplighter) Next(now time.Time) time.Time {
 func main() {
 	tokenBytes, err := ioutil.ReadFile(tokenFile)
 	if err != nil {
-		log.Fatalf("read token file failed: %w", err)
+		log.Fatalf("read token file failed: %s", err)
 	}
 
 	locationBytes, err := ioutil.ReadFile(locationFile)

@@ -59,7 +59,7 @@ func lightLamp(token []byte) error {
 	}
 	req.Header.Add("authorization", fmt.Sprintf("Bearer %s", token))
 
-	res, err := http.DefaultClient.Do(req)
+	res, err := InsecureClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("auth request failed: %w", err)
 	}
