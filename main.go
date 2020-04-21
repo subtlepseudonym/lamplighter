@@ -6,88 +6,71 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"net/http"
+	"time"
+
+	"github.com/robfig/cron/v3"
 )
 
 const (
-	tokenFile = "lifx.token"
-	lampID = "d073d5106815"
+	tokenFile    = "lifx.token"
+	locationFile = "home.loc"
 )
 
-// StateRequest is the format for a JSON body
-// that is sent to Lifx to determine the desired
-// state of the bulbs specified by the request path
-// selector
-type StateRequest struct {
-	Power string `json:"power"`
-	Color string `json:"color"`
-	Brightness float64 `json:"brightness"` // from 0.0 to 1.0
-	Duration float64 `json:"duration"` // state transition time in seconds
-	Fast bool `json:"fast"` // request w/o state checks or waiting for response
+type Lamplighter struct {
+	Location Location
 }
 
-// StateResult is the response from the Lifx API
-// specifying the state of the bulb specified by
-// the preceding request
-type StateResult struct {
-	Results []BulbState `json:"results"`
+func (l Lamplighter) Run() {
+	err := lamp()
+	if err != nil {
+		log.Printf("ERR: %s\n", err)
+	}
 }
 
-// BulbState is the state of an individual bulb
-// after a set-state request
-type BulbState struct {
-	ID string `json:"id"`
-	Label string `json:"label"`
-	Status string `json:"status"`
+func (l Lamplighter) Next(now time.Time) time.Time {
+	tomorrow := now.AddDate(0, 0, 1) // add one day
+	sunset, err := getSunset(l.Location, tomorrow)
+	if err != nil {
+		log.Printf("get sunset: %s", err)
+		return time.Time{}
+	}
+
+	return sunset
 }
 
-func main() {
+func lamp() error {
 	b, err := ioutil.ReadFile(tokenFile)
 	if err != nil {
-		log.Fatalf("read token file failed: %s", err)
+		return fmt.Errorf("read token file failed: %w", err)
 	}
 	token := bytes.TrimRight(b, "\n")
 
 	err = lightLamp(token)
 	if err != nil {
-		log.Fatalf("light lamp failed: %s", err)
+		return fmt.Errorf("light lamp failed: %w", err)
 	}
+
+	return nil
 }
 
-func lightLamp(token []byte) error {
-	state := StateRequest{
-		Power: "on",
-		Brightness: 1.0,
-		Duration: 2.0,
-	}
-
-	b, err := json.Marshal(state)
+func main() {
+	b, err := ioutil.ReadFile(locationFile)
 	if err != nil {
-		return fmt.Errorf("marshal body: %w", err)
+		log.Fatalf("read location file failed: %s", err)
 	}
-	buf := bytes.NewBuffer(b)
 
-	url := fmt.Sprintf("https://api.lifx.com/v1/lights/id:%s/state", lampID)
-	req, err := http.NewRequest(http.MethodPut, url, buf)
+	var location Location
+	err = json.Unmarshal(b, &location)
 	if err != nil {
-		return fmt.Errorf("new request failed: %w", err)
-	}
-	req.Header.Add("authorization", fmt.Sprintf("Bearer %s", token))
-
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("auth request failed: %w", err)
+		log.Printf("unmarshal location: %s", err)
 	}
 
-	if res.StatusCode == http.StatusOK {
-		return nil
+	lamp := Lamplighter{
+		Location: location,
 	}
 
-	fmt.Println("status: ", res.Status)
-	resBytes, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return fmt.Errorf("read response body: %w", err)
-	}
-	fmt.Println(string(resBytes))
-	return nil
+	cron := cron.New()
+	cron.Schedule(lamp, lamp)
+
+	cron.Run()
 }
