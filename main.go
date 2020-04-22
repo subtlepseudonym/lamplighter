@@ -39,11 +39,21 @@ func (l Lamplighter) Run() {
 }
 
 func (l Lamplighter) Next(now time.Time) time.Time {
-	tomorrow := now.AddDate(0, 0, 1) // add one day
-	sunset, err := getSunset(l.Location, tomorrow)
+	var sunset time.Time
+	var err error
+
+	sunset, err = getSunset(l.Location, now)
 	if err != nil {
 		log.Printf("get sunset: %s", err)
 		return time.Time{}
+	}
+
+	if now.After(sunset) {
+		sunset, err = getSunset(l.Location, now.AddDate(0, 0, 1))
+		if err != nil {
+			log.Printf("get sunset: %s", err)
+			return time.Time{}
+		}
 	}
 
 	log.Printf("next lamp: %s", sunset.Local().Format(time.RFC3339))
