@@ -6,6 +6,9 @@ default: all
 build: format
 	go build -o ${BINARY} -v ./cmd/notes
 
+docker:
+	docker build --network=host -t ${BINARY}:${BUILD} -f Dockerfile .
+
 format fmt:
 	go fmt -x ./...
 
