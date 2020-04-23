@@ -1,5 +1,5 @@
 BINARY=lamplighter
-BUILD=$$(vtag)
+BUILD=$$(vtag --no-meta)
 
 default: all
 
