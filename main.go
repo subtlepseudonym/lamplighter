@@ -56,7 +56,7 @@ func (l Lamplighter) Next(now time.Time) time.Time {
 		}
 	}
 
-	lightTime := sunset.Add(-20 * time.Minute)
+	lightTime := sunset.Add(-1 * time.Hour)
 	log.Printf("next lamp: %s", lightTime.Local().Format(time.RFC3339))
 	return lightTime
 }
