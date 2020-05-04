@@ -35,8 +35,8 @@ type StateResult struct {
 // after a set-state request
 type BulbState struct {
 	ID     string `json:"id"`
-	Label  string `json:"label"`
 	Status string `json:"status"`
+	Label  string `json:"label"`
 }
 
 func lightLamp(token []byte) error {
@@ -64,15 +64,32 @@ func lightLamp(token []byte) error {
 		return fmt.Errorf("auth request failed: %w", err)
 	}
 
-	if res.StatusCode == http.StatusOK {
+	switch res.StatusCode {
+	case http.StatusOK, http.StatusAccepted:
 		return nil
-	}
+	case http.StatusMultiStatus:
+		var state StateResult
+		err = json.NewDecoder(res.Body).Decode(&state)
+		if err != nil {
+			return fmt.Errorf("decode response body: %w", err)
+		}
 
-	fmt.Println("status: ", res.Status)
-	resBytes, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return fmt.Errorf("read response body: %w", err)
+		var bad []string
+		for _, bulb := range state.Results {
+			if bulb.Status != "ok" {
+				bad = append(bad, fmt.Sprintf("%s:%s", bulb.ID, bulb.Status))
+			}
+		}
+		if len(bad) != 0 {
+			return fmt.Errorf("bad bulb statuses: %s", bad)
+		}
+
+		return nil
+	default:
+		b, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			return fmt.Errorf("read response body: %w", err)
+		}
+		return fmt.Errorf("status: %s\nbody: %s", res.Status, b)
 	}
-	fmt.Println(string(resBytes))
-	return nil
 }
