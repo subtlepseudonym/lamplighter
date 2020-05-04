@@ -16,6 +16,7 @@ import (
 const (
 	tokenFile    = "secrets/lifx.token"
 	locationFile = "secrets/home.loc"
+	offset       = time.Hour
 )
 
 var InsecureClient = &http.Client{
@@ -48,15 +49,16 @@ func (l Lamplighter) Next(now time.Time) time.Time {
 		return time.Time{}
 	}
 
-	if now.After(sunset) {
+	lightTime := sunset.Add(-1 * offset)
+	if now.After(lightTime) || now.Equal(lightTime) {
 		sunset, err = getSunset(l.Location, now.AddDate(0, 0, 1))
 		if err != nil {
 			log.Printf("get sunset: %s", err)
 			return time.Time{}
 		}
+		lightTime = sunset.Add(-1 * offset)
 	}
 
-	lightTime := sunset.Add(-1 * time.Hour)
 	log.Printf("next lamp: %s", lightTime.Local().Format(time.RFC3339))
 	return lightTime
 }
