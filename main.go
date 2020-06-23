@@ -46,7 +46,7 @@ func (l Lamplighter) Next(now time.Time) time.Time {
 	sunset, err = getSunset(l.Location, now)
 	if err != nil {
 		log.Printf("get sunset: %s", err)
-		return time.Time{}
+		return time.Now().Add(time.Minute)
 	}
 
 	lightTime := sunset.Add(-1 * offset)
@@ -54,7 +54,7 @@ func (l Lamplighter) Next(now time.Time) time.Time {
 		sunset, err = getSunset(l.Location, now.AddDate(0, 0, 1))
 		if err != nil {
 			log.Printf("get sunset: %s", err)
-			return time.Time{}
+			return time.Now().Add(time.Minute)
 		}
 		lightTime = sunset.Add(-1 * offset)
 	}
