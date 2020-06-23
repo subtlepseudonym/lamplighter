@@ -17,7 +17,7 @@ const (
 	tokenFile    = "secrets/lifx.token"
 	locationFile = "secrets/home.loc"
 	offset       = time.Hour
-	retryCrount  = 5
+	retryLimit   = 5
 )
 
 var InsecureClient = &http.Client{
@@ -71,6 +71,7 @@ func (l Lamplighter) Next(now time.Time) time.Time {
 		lightTime = sunset.Add(-1 * offset)
 	}
 
+	l.errCount = 0
 	log.Printf("next lamp: %s", lightTime.Local().Format(time.RFC3339))
 	return lightTime
 }
