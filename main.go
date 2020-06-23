@@ -107,6 +107,16 @@ func main() {
 		Location:  location,
 	}
 
+	now := time.Now()
+	sunset, err := getSunset(lamp.Location, now)
+	if err != nil {
+		panic(err)
+	}
+
+	if now.After(sunset.Add(-1 * offset)) {
+		lamp.Run()
+	}
+
 	cron := cron.New()
 	cron.Schedule(lamp, lamp)
 	cron.Run()
