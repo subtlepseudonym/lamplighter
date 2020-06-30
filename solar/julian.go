@@ -19,6 +19,6 @@ const (
 // smearing the additional second evenly across 24hrs
 // https://developers.google.com/time/smear
 func JulianDate(t time.Time) float64 {
-	unixWithLeap := t.Unix() + NumLeapSeconds(t) + TerrestrialTimeOffset
-	return float64(unixWithLeap)/SecondsPerDay + EpochJulianDate
+	unixWithLeap := float64(t.Unix()) + float64(NumLeapSeconds(t)) + TerrestrialTimeOffset
+	return unixWithLeap/SecondsPerDay + EpochJulianDate
 }
