@@ -8,10 +8,6 @@ import (
 	"net/http"
 )
 
-const (
-	lampID = "d073d5106815"
-)
-
 // StateRequest is the format for a JSON body
 // that is sent to Lifx to determine the desired
 // state of the bulbs specified by the request path
@@ -39,7 +35,7 @@ type BulbState struct {
 	Label  string `json:"label"`
 }
 
-func lightLamp(token []byte) error {
+func lightLamp(lampID string, token []byte) error {
 	state := StateRequest{
 		Power:      "on",
 		Brightness: 1.0,

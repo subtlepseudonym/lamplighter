@@ -14,6 +14,7 @@ import (
 )
 
 const (
+	lampID = "d073d5106815"
 	tokenFile    = "secrets/lifx.token"
 	locationFile = "secrets/home.loc"
 	offset       = time.Hour
@@ -35,7 +36,7 @@ type Lamplighter struct {
 }
 
 func (l Lamplighter) Run() {
-	err := lightLamp(l.LifxToken)
+	err := lightLamp(lampID, l.LifxToken)
 	if err != nil {
 		log.Printf("ERR: %s\n", err)
 	}
