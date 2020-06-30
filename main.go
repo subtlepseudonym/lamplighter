@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	lampID = "d073d5106815"
+	lampID       = "d073d5106815"
 	tokenFile    = "secrets/lifx.token"
 	locationFile = "secrets/home.loc"
 	offset       = time.Hour

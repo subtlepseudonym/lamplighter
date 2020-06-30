@@ -1,8 +1,8 @@
 package solar
 
 import (
-	"time"
 	"sort"
+	"time"
 )
 
 // leapSeconds is the list of time values to the nanosecond
@@ -10,7 +10,7 @@ import (
 //
 // Values are taken from this page on 29 June, 2020:
 // https://www.ietf.org/timezones/data/leap-seconds.list
-// 
+//
 // The number of leap seconds to add to the calculated
 // Julian date can be determined by how many of these
 // values are lower than the unix time being converted.

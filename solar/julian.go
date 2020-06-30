@@ -5,9 +5,9 @@ import (
 )
 
 const (
-	EpochJulianDate = 2440587.5
+	EpochJulianDate       = 2440587.5
 	TerrestrialTimeOffset = 42.184 // TT offset from unix time
-	SecondsPerDay = 86400 // not including leap seconds
+	SecondsPerDay         = 86400  // not including leap seconds
 )
 
 // JulianDate returns the Julian date for a particular time,
@@ -20,5 +20,5 @@ const (
 // https://developers.google.com/time/smear
 func JulianDate(t time.Time) float64 {
 	unixWithLeap := t.Unix() + NumLeapSeconds(t) + TerrestrialTimeOffset
-	return float64(unixWithLeap) / SecondsPerDay + EpochJulianDate
+	return float64(unixWithLeap)/SecondsPerDay + EpochJulianDate
 }
