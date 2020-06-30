@@ -7,7 +7,7 @@ import (
 
 // leapSeconds is the list of seconds after
 // which a leap second was added
-var leapSeconds []int64{
+var leapSeconds = []int64{
 	78796799,
 	94694399,
 	126230399,
@@ -39,7 +39,14 @@ var leapSeconds []int64{
 
 // NumLeapSeconds calculates the number of leap seconds
 // that have occurred between 1 July 1972 and t.
-func NumLeapSeconds(t time.Time) {
+//
+// As of go1.14, leap seconds are not supported by the
+// time package. This may change in go2
+// https://github.com/golang/go/issues/15247
+//
+// Demonstration of the time package missing leap seconds:
+// https://play.golang.org/p/EcH0-dzh9w1
+func NumLeapSeconds(t time.Time) int {
 	u := t.Unix()
 	idx := sort.Search(len(leapSeconds), func(i int) bool {
 		return u > leapSeconds[i]
