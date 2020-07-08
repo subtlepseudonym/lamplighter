@@ -1,7 +1,7 @@
 BINARY=lamplighter
 BUILD=$$(vtag --no-meta)
 
-default: all
+default: build
 
 build: format
 	go build -o ${BINARY} -v ./cmd/notes
