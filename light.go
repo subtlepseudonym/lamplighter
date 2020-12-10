@@ -8,11 +8,11 @@ import (
 	"net/http"
 )
 
-// StateRequest is the format for a JSON body
+// SetStateRequest is the format for a JSON body
 // that is sent to Lifx to determine the desired
 // state of the bulbs specified by the request path
 // selector
-type StateRequest struct {
+type SetStateRequest struct {
 	Power      string  `json:"power"`
 	Color      string  `json:"color"`
 	Brightness float64 `json:"brightness"` // from 0.0 to 1.0
@@ -20,10 +20,10 @@ type StateRequest struct {
 	Fast       bool    `json:"fast"`       // request w/o state checks or waiting for response
 }
 
-// StateResult is the response from the Lifx API
+// SetStateResponse is the response from the Lifx API
 // specifying the state of the bulb specified by
 // the preceding request
-type StateResult struct {
+type SetStateResponse struct {
 	Results []Bulb `json:"results"`
 }
 
@@ -34,7 +34,7 @@ type Bulb struct {
 	Label  string `json:"label"`
 }
 
-func (bulb Bulb) SetState(token []byte, stateReq StateRequest) error {
+func (bulb Bulb) SetState(token []byte, stateReq SetStateRequest) error {
 	b, err := json.Marshal(stateReq)
 	if err != nil {
 		return fmt.Errorf("marshal body: %w", err)
@@ -57,7 +57,7 @@ func (bulb Bulb) SetState(token []byte, stateReq StateRequest) error {
 	case http.StatusOK, http.StatusAccepted:
 		return nil
 	case http.StatusMultiStatus:
-		var state StateResult
+		var state SetStateResponse
 		err = json.NewDecoder(res.Body).Decode(&state)
 		if err != nil {
 			return fmt.Errorf("decode response body: %w", err)

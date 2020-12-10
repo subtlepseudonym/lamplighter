@@ -36,7 +36,7 @@ type Lamplighter struct {
 }
 
 func (l Lamplighter) Run() {
-	stateReq := StateRequest{
+	stateReq := SetStateRequest{
 		Power: "on",
 		Brightness: 1.0,
 		Duration: 2.0,
