@@ -24,31 +24,24 @@ type StateRequest struct {
 // specifying the state of the bulb specified by
 // the preceding request
 type StateResult struct {
-	Results []BulbState `json:"results"`
+	Results []Bulb `json:"results"`
 }
 
-// BulbState is the state of an individual bulb
-// after a set-state request
-type BulbState struct {
+// Bulb is an individual lifx bulb
+type Bulb struct {
 	ID     string `json:"id"`
 	Status string `json:"status"`
 	Label  string `json:"label"`
 }
 
-func lightLamp(lampID string, token []byte) error {
-	state := StateRequest{
-		Power:      "on",
-		Brightness: 1.0,
-		Duration:   2.0,
-	}
-
-	b, err := json.Marshal(state)
+func (bulb Bulb) SetState(token []byte, stateReq StateRequest) error {
+	b, err := json.Marshal(stateReq)
 	if err != nil {
 		return fmt.Errorf("marshal body: %w", err)
 	}
 	buf := bytes.NewBuffer(b)
 
-	url := fmt.Sprintf("https://api.lifx.com/v1/lights/id:%s/state", lampID)
+	url := fmt.Sprintf("https://api.lifx.com/v1/lights/id:%s/state", bulb.ID)
 	req, err := http.NewRequest(http.MethodPut, url, buf)
 	if err != nil {
 		return fmt.Errorf("new request failed: %w", err)

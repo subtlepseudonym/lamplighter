@@ -36,7 +36,18 @@ type Lamplighter struct {
 }
 
 func (l Lamplighter) Run() {
-	err := lightLamp(lampID, l.LifxToken)
+	stateReq := StateRequest{
+		Power: "on",
+		Brightness: 1.0,
+		Duration: 2.0,
+	}
+
+	// TODO: generalize this for multiple bulbs
+	bulb := Bulb{
+		ID: lampID,
+	}
+
+	err := bulb.SetState(l.LifxToken, stateReq)
 	if err != nil {
 		log.Printf("ERR: %s\n", err)
 	}
