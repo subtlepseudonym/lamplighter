@@ -39,7 +39,7 @@ func (l Lamplighter) Run() {
 	stateReq := SetStateRequest{
 		Power: "on",
 		Brightness: 1.0,
-		Duration: 1800.0,
+		Duration: 900.0,
 	}
 
 	// TODO: generalize this for multiple bulbs
