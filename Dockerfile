@@ -1,4 +1,4 @@
-FROM golang:1.14
+FROM golang:1.16
 WORKDIR /workspace/
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -a -o lamplighter *.go
