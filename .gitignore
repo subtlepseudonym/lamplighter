@@ -1,3 +1,4 @@
 *.token
 *.loc
 secrets/
+lamplighter
