@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -22,6 +23,7 @@ const (
 	deviceDirectory = "secrets/devices"
 	locationFile    = "secrets/home.loc"
 
+	listenAddr    = ":9000"
 	lifxPort      = 56700
 	offset        = 4 * time.Hour
 	runTransition = 15 * time.Minute
@@ -164,6 +166,69 @@ func scanDevice(filename string) (lifxlan.Device, error) {
 	return device, nil
 }
 
+func newDeviceHandler(device lifxlan.Device) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+
+		conn, err := device.Dial()
+		if err != nil {
+			log.Printf("ERR: %s: %s", r.URL.Path, err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(`{"error": "unable to connect to device"}`))
+			return
+		}
+		defer conn.Close()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		power, err := device.GetPower(ctx, conn)
+		if err != nil {
+			log.Printf("ERR: %s: %s", r.URL.Path, err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(`{"error": "unable to read power from device"}`))
+			return
+		}
+
+		var desiredPower uint16
+		if power == 0 {
+			desiredPower = maxuint16
+		}
+
+		transitionParam := r.FormValue("transition")
+		_, err = strconv.Atoi(transitionParam)
+		if err != nil {
+			transitionParam = transitionParam + "ms"
+		}
+
+		transition, err := time.ParseDuration(transitionParam)
+		if err != nil {
+			log.Printf("ERR: parse transition param %q: %s", transitionParam, err)
+			transition = 2 * time.Second
+		}
+
+		err = setPower(device, desiredPower, transition)
+		if err != nil {
+			log.Printf("ERR: %s: %s", r.URL.Path, err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(`{"error": "unable to set power on device"}`))
+			return
+		}
+
+		streamdeck := r.FormValue("streamdeck") != "" // bool
+
+		if streamdeck {
+			if desiredPower > 0 {
+				w.Write([]byte(`{"status": "on"}`))
+			} else {
+				w.Write([]byte(`{"status": "off"}`))
+			}
+		} else {
+			w.WriteHeader(http.StatusOK)
+		}
+	})
+}
+
 func main() {
 	// manually set local timezone for docker container
 	if tz := os.Getenv("TZ"); tz != "" {
@@ -227,5 +292,19 @@ func main() {
 
 	cron := cron.New()
 	cron.Schedule(lamp, lamp)
+
+	mux := http.NewServeMux()
+	for label, device := range devices {
+		endpoint := fmt.Sprintf("/%s/toggle", label)
+		mux.Handle(endpoint, newDeviceHandler(device))
+	}
+
+	srv := http.Server{
+		Addr:    listenAddr,
+		Handler: mux,
+	}
+	log.Printf("listening on %s", srv.Addr)
+
+	go log.Fatal(srv.ListenAndServe())
 	cron.Run()
 }
