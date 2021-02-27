@@ -29,6 +29,7 @@ const (
 	retryLimit    = 5
 
 	lifxPort            = 56700
+	setPowerMessageType = 117
 	maxuint16           = 65535
 	maxuint32           = 4294967295 // in ms = ~1193 hours
 )
@@ -121,7 +122,7 @@ func setPower(device lifxlan.Device, desiredPower uint16, transition time.Durati
 		Duration: uint32(duration),
 	}
 
-	_, err = device.Send(ctx, conn, lifxlan.FlagAckRequired, lifxlan.SetPower, &payload)
+	_, err = device.Send(ctx, conn, lifxlan.FlagAckRequired, setPowerMessageType, &payload)
 	if err != nil {
 		return fmt.Errorf("send: %w", err)
 	}
