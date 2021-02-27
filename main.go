@@ -24,13 +24,13 @@ const (
 	locationFile    = "secrets/home.loc"
 
 	listenAddr    = ":9000"
-	lifxPort      = 56700
 	offset        = 4 * time.Hour
 	runTransition = 15 * time.Minute
 	retryLimit    = 5
 
-	maxuint16 = 65535
-	maxuint32 = 4294967295 // in ms = ~1193 hours
+	lifxPort            = 56700
+	maxuint16           = 65535
+	maxuint32           = 4294967295 // in ms = ~1193 hours
 )
 
 var InsecureClient = &http.Client{
@@ -195,16 +195,19 @@ func newDeviceHandler(device lifxlan.Device) http.Handler {
 			desiredPower = maxuint16
 		}
 
-		transitionParam := r.FormValue("transition")
-		_, err = strconv.Atoi(transitionParam)
-		if err != nil {
-			transitionParam = transitionParam + "ms"
-		}
+		transition := 2 * time.Second
+		if _, ok := r.Form["transition"]; ok {
+			param := r.FormValue("transition")
+			_, err = strconv.Atoi(param)
+			if err == nil && param != "" {
+				param = param + "ms"
+			}
 
-		transition, err := time.ParseDuration(transitionParam)
-		if err != nil {
-			log.Printf("ERR: parse transition param %q: %s", transitionParam, err)
-			transition = 2 * time.Second
+			parsed, err := time.ParseDuration(param)
+			if err != nil {
+				log.Printf("ERR: parse transition param %q: %s", param, err)
+			}
+			transition = parsed
 		}
 
 		err = setPower(device, desiredPower, transition)
@@ -215,8 +218,7 @@ func newDeviceHandler(device lifxlan.Device) http.Handler {
 			return
 		}
 
-		streamdeck := r.FormValue("streamdeck") != "" // bool
-
+		_, streamdeck := r.Form["streamdeck"] // bool
 		if streamdeck {
 			if desiredPower > 0 {
 				w.Write([]byte(`{"status": "on"}`))
