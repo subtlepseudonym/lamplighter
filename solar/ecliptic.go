@@ -1,5 +1,9 @@
 package solar
 
+import (
+	"math"
+)
+
 // MeanSolarNoon approximates solar noon for the mean sun
 // for a given Julian day at a given longitude.
 // For the purpose of this calculation, longitude is degrees
@@ -11,7 +15,7 @@ func MeanSolarNoon(julianDay, longitudeWest float64) float64 {
 // SolarMeanAnomaly calculates the fraction of the sun's
 // orbital period elapsed since perihelion.
 func SolarMeanAnomaly(meanSolarNoon float64) float64 {
-	return 357.5291 + (0.98560028 * meanSolarNoon) % 360
+	return math.Mod(357.5291 + (0.98560028 * meanSolarNoon), 360)
 }
 
 // EquationOfTheCenter calculates the angular difference
@@ -32,4 +36,5 @@ func EquationOfTheCenter(meanAnomaly float64) float64 {
 // EclipticLongitude calculates the sun's distance along the
 // ecliptic
 func EclipticLongitude(meanAnomaly, center float64) float64 {
+	return 0
 }
