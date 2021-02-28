@@ -167,39 +167,14 @@ func scanDevice(filename string) (lifxlan.Device, error) {
 	return device, nil
 }
 
-func newDeviceHandler(device lifxlan.Device) http.Handler {
+func newDeviceHandler(device lifxlan.Device, desiredPower uint16) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
-
-		conn, err := device.Dial()
-		if err != nil {
-			log.Printf("ERR: %s: %s", r.URL.Path, err)
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(`{"error": "unable to connect to device"}`))
-			return
-		}
-		defer conn.Close()
-
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
-		power, err := device.GetPower(ctx, conn)
-		if err != nil {
-			log.Printf("ERR: %s: %s", r.URL.Path, err)
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(`{"error": "unable to read power from device"}`))
-			return
-		}
-
-		var desiredPower uint16
-		if power == 0 {
-			desiredPower = maxuint16
-		}
 
 		transition := 2 * time.Second
 		if _, ok := r.Form["transition"]; ok {
 			param := r.FormValue("transition")
-			_, err = strconv.Atoi(param)
+			_, err := strconv.Atoi(param)
 			if err == nil && param != "" {
 				param = param + "ms"
 			}
@@ -211,7 +186,7 @@ func newDeviceHandler(device lifxlan.Device) http.Handler {
 			transition = parsed
 		}
 
-		err = setPower(device, desiredPower, transition)
+		err := setPower(device, desiredPower, transition)
 		if err != nil {
 			log.Printf("ERR: %s: %s", r.URL.Path, err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -219,15 +194,10 @@ func newDeviceHandler(device lifxlan.Device) http.Handler {
 			return
 		}
 
-		_, streamdeck := r.Form["streamdeck"] // bool
-		if streamdeck {
-			if desiredPower > 0 {
-				w.Write([]byte(`{"status": "on"}`))
-			} else {
-				w.Write([]byte(`{"status": "off"}`))
-			}
+		if desiredPower > 0 {
+			w.Write([]byte(`{"status": "on"}`))
 		} else {
-			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"status": "off"}`))
 		}
 	})
 }
@@ -298,8 +268,11 @@ func main() {
 
 	mux := http.NewServeMux()
 	for label, device := range devices {
-		endpoint := fmt.Sprintf("/%s/toggle", label)
-		mux.Handle(endpoint, newDeviceHandler(device))
+		on := fmt.Sprintf("/%s/on", label)
+		mux.Handle(on, newDeviceHandler(device, maxuint16))
+
+		off := fmt.Sprintf("/%s/off", label)
+		mux.Handle(off, newDeviceHandler(device, uint16(0)))
 	}
 
 	srv := http.Server{
