@@ -281,6 +281,6 @@ func main() {
 	}
 	log.Printf("listening on %s", srv.Addr)
 
-	go log.Fatal(srv.ListenAndServe())
-	cron.Run()
+	cron.Start()
+	log.Fatal(srv.ListenAndServe())
 }
