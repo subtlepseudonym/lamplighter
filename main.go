@@ -24,7 +24,7 @@ const (
 	locationFile    = "secrets/home.loc"
 
 	listenAddr    = ":9000"
-	offset        = 4 * time.Hour
+	offset        = time.Hour
 	runTransition = 15 * time.Minute
 	retryLimit    = 5
 
