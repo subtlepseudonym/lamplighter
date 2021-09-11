@@ -54,7 +54,7 @@ type Lamplighter struct {
 func (l Lamplighter) Run() {
 	for _, device := range l.Devices {
 		go func() {
-			err := setBrightness(device, lifxlan.PowerOn, runTransition)
+			err := setBrightness(device, maxuint16, runTransition)
 			if err != nil {
 				log.Printf("ERR: %s\n", err)
 			}
