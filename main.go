@@ -202,6 +202,30 @@ func newDeviceHandler(device lifxlan.Device, desiredPower uint16) http.Handler {
 	})
 }
 
+func newStatusHandler(device lifxlan.Device) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := device.Dial()
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(`{"error": "unable to connect to device"}`))
+			return
+		}
+		defer conn.Close()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		power, err := device.GetPower(ctx, conn)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(`{"error": "unable to get device power state"}`))
+			return
+		}
+
+		fmt.Fprintf(w, `{"power": %d}`, power / maxuint16)
+	})
+}
+
 func main() {
 	// manually set local timezone for docker container
 	if tz := os.Getenv("TZ"); tz != "" {
@@ -273,6 +297,9 @@ func main() {
 
 		off := fmt.Sprintf("/%s/off", label)
 		mux.Handle(off, newDeviceHandler(device, uint16(0)))
+
+		status := fmt.Sprintf("/%s/status", label)
+		mux.Handle(status, newStatusHandler(device))
 	}
 
 	srv := http.Server{
