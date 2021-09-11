@@ -167,9 +167,31 @@ func scanDevice(filename string) (lifxlan.Device, error) {
 	return device, nil
 }
 
-func newDeviceHandler(device lifxlan.Device, desiredPower uint16) http.Handler {
+func newPowerHandler(device lifxlan.Device) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
+
+		var power uint16
+		if _, ok := r.Form["power"]; ok {
+			param := r.FormValue("power")
+			p, err := strconv.Atoi(param)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte(`{"error": "unable to parse power parameter"}`))
+				return
+			}
+
+			if p < 0 {
+				p = 0
+			} else if p > 100 {
+				p = 100
+			}
+
+			power = uint16(p / 100 * maxuint16)
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(`{"error": "power parameter is required"}`))
+		}
 
 		transition := 2 * time.Second
 		if _, ok := r.Form["transition"]; ok {
@@ -186,7 +208,7 @@ func newDeviceHandler(device lifxlan.Device, desiredPower uint16) http.Handler {
 			transition = parsed
 		}
 
-		err := setPower(device, desiredPower, transition)
+		err := setPower(device, power, transition)
 		if err != nil {
 			log.Printf("ERR: %s: %s", r.URL.Path, err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -194,11 +216,7 @@ func newDeviceHandler(device lifxlan.Device, desiredPower uint16) http.Handler {
 			return
 		}
 
-		if desiredPower > 0 {
-			w.Write([]byte(`{"status": "on"}`))
-		} else {
-			w.Write([]byte(`{"status": "off"}`))
-		}
+		fmt.Fprintf(w, `{"power": %d}`, power / maxuint16)
 	})
 }
 
@@ -292,11 +310,8 @@ func main() {
 
 	mux := http.NewServeMux()
 	for label, device := range devices {
-		on := fmt.Sprintf("/%s/on", label)
-		mux.Handle(on, newDeviceHandler(device, maxuint16))
-
-		off := fmt.Sprintf("/%s/off", label)
-		mux.Handle(off, newDeviceHandler(device, uint16(0)))
+		dev := fmt.Sprintf("/%s", label)
+		mux.Handle(dev, newPowerHandler(device))
 
 		status := fmt.Sprintf("/%s/status", label)
 		mux.Handle(status, newStatusHandler(device))
