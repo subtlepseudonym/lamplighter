@@ -217,7 +217,7 @@ func newPowerHandler(device lifxlan.Device) http.Handler {
 			return
 		}
 
-		fmt.Fprintf(w, `{"power": %d}`, power / maxuint16)
+		fmt.Fprintf(w, `{"power": %s}`, r.FormValue("power"))
 	})
 }
 
