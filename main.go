@@ -18,6 +18,7 @@ import (
 
 	"github.com/robfig/cron/v3"
 	"go.yhsif.com/lifxlan"
+	"go.yhsif.com/lifxlan/light"
 )
 
 const (
@@ -30,9 +31,10 @@ const (
 	retryLimit    = 5
 
 	lifxPort            = 56700
-	setPowerMessageType = 117
 	maxuint16           = 65535
 	maxuint32           = 4294967295 // in ms = ~1193 hours
+
+	KelvinNeutral = 3500
 )
 
 var InsecureClient = &http.Client{
@@ -44,20 +46,15 @@ var InsecureClient = &http.Client{
 }
 
 type Lamplighter struct {
-	Devices  map[string]lifxlan.Device
+	Devices  map[string]light.Device
 	Location Location
 	errCount uint
-}
-
-type SetPowerPayload struct {
-	Level    uint16
-	Duration uint32
 }
 
 func (l Lamplighter) Run() {
 	for _, device := range l.Devices {
 		go func() {
-			err := setPower(device, maxuint16, runTransition)
+			err := setBrightness(device, lifxlan.PowerOn, runTransition)
 			if err != nil {
 				log.Printf("ERR: %s\n", err)
 			}
@@ -100,7 +97,7 @@ func (l Lamplighter) Next(now time.Time) time.Time {
 	return lightTime
 }
 
-func setPower(device lifxlan.Device, desiredPower uint16, transition time.Duration) error {
+func setBrightness(device light.Device, brightness uint16, transition time.Duration) error {
 	conn, err := device.Dial()
 	if err != nil {
 		return fmt.Errorf("dial: %w", err)
@@ -110,28 +107,22 @@ func setPower(device lifxlan.Device, desiredPower uint16, transition time.Durati
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	duration := transition.Milliseconds()
-	if duration < 0 {
-		duration *= -1
-	}
-	if duration > maxuint32 {
-		duration = maxuint32
-	}
-
-	payload := SetPowerPayload{
-		Level:    desiredPower,
-		Duration: uint32(duration),
+	color := &lifxlan.Color{
+		Hue: 0, // technically green
+		Saturation: 0,
+		Brightness: brightness,
+		Kelvin: KelvinNeutral,
 	}
 
-	_, err = device.Send(ctx, conn, lifxlan.FlagAckRequired, setPowerMessageType, &payload)
+	err = device.SetColor(ctx, conn, color, transition, false)
 	if err != nil {
-		return fmt.Errorf("send: %w", err)
+		return fmt.Errorf("set color: %w", err)
 	}
 
 	return nil
 }
 
-func scanDevice(filename string) (lifxlan.Device, error) {
+func scanDevice(filename string) (light.Device, error) {
 	f, err := os.Open(filename)
 	if err != nil {
 		return nil, fmt.Errorf("open device file: %w", err)
@@ -160,25 +151,30 @@ func scanDevice(filename string) (lifxlan.Device, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	bulb, err := light.Wrap(ctx, device, false)
+	if err != nil {
+		return nil, fmt.Errorf("device is not a light: %w", err)
+	}
+
 	err = device.GetLabel(ctx, nil)
 	if err != nil {
 		log.Printf("ERR: get device label: %s", err)
 	}
 
-	return device, nil
+	return bulb, nil
 }
 
-func newPowerHandler(device lifxlan.Device) http.Handler {
+func newPowerHandler(device light.Device) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
 
-		var power uint16
-		if _, ok := r.Form["power"]; ok {
-			param := r.FormValue("power")
+		var brightness uint16
+		if _, ok := r.Form["brightness"]; ok {
+			param := r.FormValue("brightness")
 			p, err := strconv.Atoi(param)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
-				w.Write([]byte(`{"error": "unable to parse power parameter"}`))
+				w.Write([]byte(`{"error": "unable to parse brightness parameter"}`))
 				return
 			}
 
@@ -188,10 +184,10 @@ func newPowerHandler(device lifxlan.Device) http.Handler {
 				p = 100
 			}
 
-			power = uint16(math.Floor(float64(p) / 100.0 * float64(maxuint16)))
+			brightness = uint16(math.Floor((float64(p) / 100.0) * float64(maxuint16)))
 		} else {
 			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(`{"error": "power parameter is required"}`))
+			w.Write([]byte(`{"error": "brightness parameter is required"}`))
 		}
 
 		transition := 2 * time.Second
@@ -209,19 +205,19 @@ func newPowerHandler(device lifxlan.Device) http.Handler {
 			transition = parsed
 		}
 
-		err := setPower(device, power, transition)
+		err := setBrightness(device, brightness, transition)
 		if err != nil {
 			log.Printf("ERR: %s: %s", r.URL.Path, err)
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(`{"error": "unable to set power on device"}`))
+			w.Write([]byte(`{"error": "unable to set brightness on device"}`))
 			return
 		}
 
-		fmt.Fprintf(w, `{"power": %s}`, r.FormValue("power"))
+		fmt.Fprintf(w, `{"brightness": %s}`, r.FormValue("brightness"))
 	})
 }
 
-func newStatusHandler(device lifxlan.Device) http.Handler {
+func newStatusHandler(device light.Device) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		conn, err := device.Dial()
 		if err != nil {
@@ -234,14 +230,14 @@ func newStatusHandler(device lifxlan.Device) http.Handler {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		power, err := device.GetPower(ctx, conn)
+		color, err := device.GetColor(ctx, conn)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(`{"error": "unable to get device power state"}`))
+			w.Write([]byte(`{"error": "unable to get device brightness state"}`))
 			return
 		}
 
-		fmt.Fprintf(w, `{"power": %d}`, power / maxuint16)
+		fmt.Fprintf(w, `{"brightness": %.2f}`, float64(color.Brightness) / float64(maxuint16))
 	})
 }
 
@@ -276,7 +272,7 @@ func main() {
 		log.Fatalf("read device directory: %s", err)
 	}
 
-	devices := make(map[string]lifxlan.Device)
+	devices := make(map[string]light.Device)
 	for _, filename := range deviceFiles {
 		filepath := path.Join(deviceDirectory, filename)
 		device, err := scanDevice(filepath)
