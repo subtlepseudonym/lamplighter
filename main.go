@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"path"
@@ -187,7 +188,7 @@ func newPowerHandler(device lifxlan.Device) http.Handler {
 				p = 100
 			}
 
-			power = uint16(p / 100 * maxuint16)
+			power = uint16(math.Floor(float64(p) / 100.0 * float64(maxuint16)))
 		} else {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(`{"error": "power parameter is required"}`))
