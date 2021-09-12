@@ -34,7 +34,7 @@ const (
 	maxuint16           = 65535
 	maxuint32           = 4294967295 // in ms = ~1193 hours
 
-	KelvinNeutral = 3500
+	KelvinNeutral = 3000
 )
 
 var InsecureClient = &http.Client{
