@@ -23,12 +23,13 @@ const (
 	deviceDirectory = "secrets/devices"
 	locationFile    = "secrets/home.loc"
 
-	listenAddr    = ":9000"
-	offset        = time.Hour
-	runTransition = 15 * time.Minute
-	retryLimit    = 5
+	listenAddr = ":9000"
+	retryLimit = 5
+	lifxPort   = 56700
 
-	lifxPort  = 56700
+	defaultTransition = 15 * time.Minute // duration over which to turn on devices
+	defaultOffset     = time.Hour        // duration before sunset to start transition
+
 	maxuint16 = 65535
 	maxuint32 = 4294967295 // in ms = ~1193 hours
 
@@ -41,58 +42,6 @@ var InsecureClient = &http.Client{
 			InsecureSkipVerify: true,
 		},
 	},
-}
-
-type Lamplighter struct {
-	Devices  map[string]*Device
-	Location Location
-	errCount uint
-}
-
-func (l Lamplighter) Run() {
-	for _, device := range l.Devices {
-		go func() {
-			err := device.SetBrightness(maxuint16, runTransition)
-			if err != nil {
-				log.Printf("ERR: %s\n", err)
-			}
-		}()
-	}
-}
-
-func (l Lamplighter) Next(now time.Time) time.Time {
-	var sunset time.Time
-	var err error
-
-	sunset, err = getSunset(l.Location, now)
-	if err != nil {
-		log.Printf("get sunset: %s", err)
-		if l.errCount >= retryLimit {
-			return time.Time{}
-		}
-
-		l.errCount++
-		return time.Now().Add(time.Minute)
-	}
-
-	lightTime := sunset.Add(-1 * offset)
-	if now.After(lightTime) || now.Equal(lightTime) {
-		sunset, err = getSunset(l.Location, now.AddDate(0, 0, 1))
-		if err != nil {
-			log.Printf("get sunset: %s", err)
-			if l.errCount >= retryLimit {
-				return time.Time{}
-			}
-
-			l.errCount++
-			return time.Now().Add(time.Minute)
-		}
-		lightTime = sunset.Add(-1 * offset)
-	}
-
-	l.errCount = 0
-	log.Printf("next lamp: %s", lightTime.Local().Format(time.RFC3339))
-	return lightTime
 }
 
 func scanDevice(filename string) (*Device, error) {
@@ -163,6 +112,8 @@ func main() {
 		log.Printf("unmarshal location: %s", err)
 	}
 
+	lamp := New(location, defaultTransition, defaultOffset)
+
 	devDir, err := os.Open(deviceDirectory)
 	if err != nil {
 		log.Fatalf("open devices file failed: %s", err)
@@ -173,7 +124,6 @@ func main() {
 		log.Fatalf("read device directory: %s", err)
 	}
 
-	devices := make(map[string]*Device)
 	for _, filename := range deviceFiles {
 		filepath := path.Join(deviceDirectory, filename)
 		device, err := scanDevice(filepath)
@@ -184,22 +134,17 @@ func main() {
 
 		label := device.Label().String()
 		key := strings.ToLower(label)
-		devices[key] = device
+		lamp.Devices[key] = device
 		log.Printf("registered device: %q", key)
 	}
 
-	lamp := Lamplighter{
-		Devices:  devices,
-		Location: location,
-	}
-
 	now := time.Now()
-	sunset, err := getSunset(lamp.Location, now)
+	sunset, err := getSunset(location, now)
 	if err != nil {
 		panic(err)
 	}
 
-	if now.After(sunset.Add(-1 * offset)) {
+	if now.After(sunset.Add(-1 * defaultOffset)) {
 		lamp.Run()
 	}
 
@@ -207,7 +152,7 @@ func main() {
 	cron.Schedule(lamp, lamp)
 
 	mux := http.NewServeMux()
-	for label, device := range devices {
+	for label, device := range lamp.Devices {
 		dev := fmt.Sprintf("/%s", label)
 		mux.HandleFunc(dev, device.PowerHandler)
 
