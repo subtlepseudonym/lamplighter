@@ -1,4 +1,5 @@
 *.token
 *.loc
 secrets/
-./lamplighter
+lamplighter
+!lamplighter/
