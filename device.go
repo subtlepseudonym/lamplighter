@@ -13,6 +13,10 @@ import (
 	"go.yhsif.com/lifxlan/light"
 )
 
+const (
+	defaultPowerTransition = 2 * time.Second
+)
+
 type Device struct {
 	light.Device
 }
@@ -89,7 +93,7 @@ func (d *Device) PowerHandler(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"error": "brightness parameter is required"}`))
 	}
 
-	transition := 2 * time.Second
+	transition := defaultPowerTransition
 	if _, ok := r.Form["transition"]; ok {
 		param := r.FormValue("transition")
 		_, err := strconv.Atoi(param)
