@@ -30,9 +30,6 @@ const (
 	defaultTransition = 15 * time.Minute // duration over which to turn on devices
 	defaultOffset     = time.Hour        // duration before sunset to start transition
 
-	maxuint16 = 65535
-	maxuint32 = 4294967295 // in ms = ~1193 hours
-
 	KelvinNeutral = 3000
 )
 

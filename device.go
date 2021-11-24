@@ -61,7 +61,7 @@ func (d *Device) StatusHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Fprintf(w, `{"brightness": %.2f}`, float64(color.Brightness)/float64(maxuint16))
+	fmt.Fprintf(w, `{"brightness": %.2f}`, float64(color.Brightness)/float64(math.MaxUint16))
 }
 
 func (d *Device) PowerHandler(w http.ResponseWriter, r *http.Request) {
@@ -83,7 +83,7 @@ func (d *Device) PowerHandler(w http.ResponseWriter, r *http.Request) {
 			p = 100
 		}
 
-		brightness = uint16(math.Floor((float64(p) / 100.0) * float64(maxuint16)))
+		brightness = uint16(math.Floor((float64(p) / 100.0) * float64(math.MaxUint16)))
 	} else {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(`{"error": "brightness parameter is required"}`))

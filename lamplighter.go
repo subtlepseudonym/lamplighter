@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"math"
 	"time"
 )
 
@@ -26,7 +27,7 @@ func New(location Location, transition, offset time.Duration) Lamplighter {
 func (l Lamplighter) Run() {
 	for _, device := range l.Devices {
 		go func() {
-			err := device.SetBrightness(maxuint16, l.transition)
+			err := device.SetBrightness(math.MaxUint16, l.transition)
 			if err != nil {
 				log.Printf("ERR: %s\n", err)
 			}
