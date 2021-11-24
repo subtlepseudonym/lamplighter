@@ -6,11 +6,14 @@ default: build
 build: format
 	go build -o ${BINARY} -v ./*.go
 
-docker:
-	docker build --network=host -t ${BINARY}:${BUILD} -f Dockerfile .
+docker: format
+	docker build --network=host --tag ${BINARY}:${BUILD} -f Dockerfile .
+
+test:
+	gotest --race ./...
 
 format fmt:
-	go fmt -x ./...
+	gofmt -l -w -e .
 
 clean:
 	go mod tidy
