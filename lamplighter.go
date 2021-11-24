@@ -10,6 +10,9 @@ const (
 	retryLimit = 5
 )
 
+// Lamplighter is a set of lifx devices that should be turned on
+// at a given offest from sunset each day over a given period of
+// duration
 type Lamplighter struct {
 	Devices map[string]*Device
 
@@ -28,6 +31,9 @@ func New(location Location, transition, offset time.Duration) Lamplighter {
 	}
 }
 
+// Run turns on all devices over the Lamplighter's duration
+//
+// This implements robfig/go-cron.Job
 func (l Lamplighter) Run() {
 	for _, device := range l.Devices {
 		go func() {
@@ -39,6 +45,10 @@ func (l Lamplighter) Run() {
 	}
 }
 
+// Next determines the next time the Lamplighter's devices should be
+// turned on
+//
+// This implements robfig/go-cron.Schedule
 func (l Lamplighter) Next(now time.Time) time.Time {
 	var sunset time.Time
 	var err error
