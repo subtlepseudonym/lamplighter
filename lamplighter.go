@@ -1,9 +1,13 @@
-package main
+package lamplighter
 
 import (
 	"log"
 	"math"
 	"time"
+)
+
+const (
+	retryLimit = 5
 )
 
 type Lamplighter struct {
@@ -39,7 +43,7 @@ func (l Lamplighter) Next(now time.Time) time.Time {
 	var sunset time.Time
 	var err error
 
-	sunset, err = getSunset(l.location, now)
+	sunset, err = GetSunset(l.location, now)
 	if err != nil {
 		log.Printf("get sunset: %s", err)
 		if l.errCount >= retryLimit {
@@ -52,7 +56,7 @@ func (l Lamplighter) Next(now time.Time) time.Time {
 
 	lightTime := sunset.Add(-1 * l.offset)
 	if now.After(lightTime) || now.Equal(lightTime) {
-		sunset, err = getSunset(l.location, now.AddDate(0, 0, 1))
+		sunset, err = GetSunset(l.location, now.AddDate(0, 0, 1))
 		if err != nil {
 			log.Printf("get sunset: %s", err)
 			if l.errCount >= retryLimit {

@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -13,6 +12,8 @@ import (
 	"path"
 	"strings"
 	"time"
+
+	"github.com/subtlepseudonym/lamplighter"
 
 	"github.com/robfig/cron/v3"
 	"go.yhsif.com/lifxlan"
@@ -24,24 +25,13 @@ const (
 	locationFile    = "secrets/home.loc"
 
 	listenAddr = ":9000"
-	retryLimit = 5
 	lifxPort   = 56700
 
 	defaultTransition = 15 * time.Minute // duration over which to turn on devices
 	defaultOffset     = time.Hour        // duration before sunset to start transition
-
-	KelvinNeutral = 3000
 )
 
-var InsecureClient = &http.Client{
-	Transport: &http.Transport{
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: true,
-		},
-	},
-}
-
-func scanDevice(filename string) (*Device, error) {
+func scanDevice(filename string) (*lamplighter.Device, error) {
 	f, err := os.Open(filename)
 	if err != nil {
 		return nil, fmt.Errorf("open device file: %w", err)
@@ -85,7 +75,7 @@ func scanDevice(filename string) (*Device, error) {
 		log.Printf("get device label: %s", err)
 	}
 
-	return &Device{bulb}, nil
+	return &lamplighter.Device{bulb}, nil
 }
 
 func main() {
@@ -103,13 +93,13 @@ func main() {
 		log.Fatalf("read location file failed: %s", err)
 	}
 
-	var location Location
+	var location lamplighter.Location
 	err = json.Unmarshal(locationBytes, &location)
 	if err != nil {
 		log.Printf("unmarshal location: %s", err)
 	}
 
-	lamp := New(location, defaultTransition, defaultOffset)
+	lamp := lamplighter.New(location, defaultTransition, defaultOffset)
 
 	devDir, err := os.Open(deviceDirectory)
 	if err != nil {
@@ -136,7 +126,7 @@ func main() {
 	}
 
 	now := time.Now()
-	sunset, err := getSunset(location, now)
+	sunset, err := lamplighter.GetSunset(location, now)
 	if err != nil {
 		panic(err)
 	}

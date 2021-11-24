@@ -1,4 +1,4 @@
-package main
+package lamplighter
 
 import (
 	"context"
@@ -15,6 +15,8 @@ import (
 
 const (
 	defaultPowerTransition = 2 * time.Second
+
+	KelvinNeutral = 3000
 )
 
 type Device struct {

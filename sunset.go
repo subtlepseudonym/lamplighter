@@ -1,11 +1,20 @@
-package main
+package lamplighter
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
 )
+
+var insecureClient = &http.Client{
+	Transport: &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+		},
+	},
+}
 
 const (
 	solarURL        = "https://api.sunrise-sunset.org/json"
@@ -28,14 +37,14 @@ type SolarData struct {
 	Sunset time.Time `json:"sunset"`
 }
 
-func getSunset(location Location, date time.Time) (time.Time, error) {
+func GetSunset(location Location, date time.Time) (time.Time, error) {
 	url := fmt.Sprintf("%s?lat=%f&lng=%f&date=%s&formatted=0", solarURL, location.Latitude, location.Longitude, date.Format(dateString))
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("new request: %w", err)
 	}
 
-	res, err := InsecureClient.Do(req)
+	res, err := insecureClient.Do(req)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("sunset request: %w", err)
 	}

@@ -4,7 +4,7 @@ BUILD=$$(vtag --no-meta)
 default: build
 
 build: format
-	go build -o ${BINARY} -v ./*.go
+	go build -o ${BINARY} -v ./cmd/lamplighter
 
 docker: format
 	docker build --network=host --tag ${BINARY}:${BUILD} -f Dockerfile .
