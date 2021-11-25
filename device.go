@@ -19,8 +19,13 @@ const (
 	KelvinNeutral = 3000
 )
 
+// Device defines a desired state for a given lifx device
 type Device struct {
 	light.Device
+
+	Name       string
+	Brightness uint16
+	Transition time.Duration
 }
 
 func (d *Device) SetBrightness(brightness uint16, transition time.Duration) error {

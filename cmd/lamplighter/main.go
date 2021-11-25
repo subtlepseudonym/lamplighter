@@ -7,10 +7,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"path"
-	"strings"
+	"strconv"
 	"time"
 
 	"github.com/subtlepseudonym/lamplighter"
@@ -40,18 +41,15 @@ func scanDevice(filename string) (*lamplighter.Device, error) {
 	scanner := bufio.NewScanner(f)
 
 	scanner.Scan()
-	addr := scanner.Text()
-
-	scanner.Scan()
-	mac := scanner.Text()
+	host := fmt.Sprintf("%s:%d", scanner.Text(), lifxPort)
 
 	name := path.Base(filename)
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("scan device file %q: %w", name, err)
 	}
 
-	host := fmt.Sprintf("%s:%d", addr, lifxPort)
-	target, err := lifxlan.ParseTarget(mac)
+	scanner.Scan()
+	target, err := lifxlan.ParseTarget(scanner.Text())
 	if err != nil {
 		return nil, fmt.Errorf("%s: parse mac address: %w", name, err)
 	}
@@ -77,7 +75,29 @@ func scanDevice(filename string) (*lamplighter.Device, error) {
 		return nil, fmt.Errorf("%s: device is not a light: %w", name, err)
 	}
 
-	return &lamplighter.Device{bulb}, nil
+	scanner.Scan()
+	var brightness uint16
+	b, err := strconv.ParseUint(scanner.Text(), 10, 16)
+	if err != nil {
+		brightness = math.MaxUint16
+	} else {
+		brightness = uint16(b)
+	}
+
+	scanner.Scan()
+	var transition time.Duration
+	transition, err = time.ParseDuration(scanner.Text())
+	if err != nil {
+		transition = defaultTransition
+	}
+
+	d := &lamplighter.Device{
+		Device:     bulb,
+		Name:       name,
+		Brightness: brightness,
+		Transition: transition,
+	}
+	return d, nil
 }
 
 func main() {
@@ -121,10 +141,8 @@ func main() {
 			continue
 		}
 
-		label := device.Label().String()
-		key := strings.ToLower(label)
-		lamp.Devices[key] = device
-		log.Printf("registered device: %q %s", key, device.HardwareVersion())
+		lamp.Devices[device.Name] = device
+		log.Printf("registered device: %q %s %v", device.Name, device.HardwareVersion(), device)
 	}
 
 	now := time.Now()
