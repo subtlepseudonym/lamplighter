@@ -28,7 +28,11 @@ type Device struct {
 	Transition time.Duration
 }
 
-func (d *Device) SetBrightness(brightness uint16, transition time.Duration) error {
+func (d *Device) Light() error {
+	return d.setBrightness(d.Brightness, d.Transition)
+}
+
+func (d *Device) setBrightness(brightness uint16, transition time.Duration) error {
 	conn, err := d.Dial()
 	if err != nil {
 		return fmt.Errorf("dial: %w", err)
@@ -45,9 +49,14 @@ func (d *Device) SetBrightness(brightness uint16, transition time.Duration) erro
 		Kelvin:     KelvinNeutral,
 	}
 
-	err = d.SetColor(ctx, conn, color, transition, false)
+	err = d.SetPower(ctx, conn, 0, true)
 	if err != nil {
-		return fmt.Errorf("set color: %w", err)
+		return fmt.Errorf("%s: set power: %w", d.Name, err)
+	}
+
+	err = d.SetColor(ctx, conn, color, transition, true)
+	if err != nil {
+		return fmt.Errorf("%s: set color: %w", d.Name, err)
 	}
 
 	return nil
@@ -115,7 +124,7 @@ func (d *Device) PowerHandler(w http.ResponseWriter, r *http.Request) {
 		transition = parsed
 	}
 
-	err := d.SetBrightness(brightness, transition)
+	err := d.setBrightness(brightness, transition)
 	if err != nil {
 		log.Printf("ERR: %s: %s", r.URL.Path, err)
 		w.WriteHeader(http.StatusInternalServerError)

@@ -2,7 +2,6 @@ package lamplighter
 
 import (
 	"log"
-	"math"
 	"time"
 )
 
@@ -16,18 +15,16 @@ const (
 type Lamplighter struct {
 	Devices map[string]*Device
 
-	location   Location
-	transition time.Duration
-	offset     time.Duration
-	errCount   uint
+	location Location
+	offset   time.Duration
+	errCount uint
 }
 
-func New(location Location, transition, offset time.Duration) Lamplighter {
+func New(location Location, offset time.Duration) Lamplighter {
 	return Lamplighter{
-		Devices:    make(map[string]*Device),
-		location:   location,
-		transition: transition,
-		offset:     offset,
+		Devices:  make(map[string]*Device),
+		location: location,
+		offset:   offset,
 	}
 }
 
@@ -37,7 +34,7 @@ func New(location Location, transition, offset time.Duration) Lamplighter {
 func (l Lamplighter) Run() {
 	for _, device := range l.Devices {
 		go func() {
-			err := device.SetBrightness(math.MaxUint16, l.transition)
+			err := lamp.Light()
 			if err != nil {
 				log.Printf("ERR: %s\n", err)
 			}

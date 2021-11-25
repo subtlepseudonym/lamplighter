@@ -121,7 +121,7 @@ func main() {
 		log.Printf("unmarshal location: %s", err)
 	}
 
-	lamp := lamplighter.New(location, defaultTransition, defaultOffset)
+	lamp := lamplighter.New(location, defaultOffset)
 
 	devDir, err := os.Open(deviceDirectory)
 	if err != nil {
