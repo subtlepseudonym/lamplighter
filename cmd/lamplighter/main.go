@@ -142,7 +142,7 @@ func main() {
 		}
 
 		lamp.Devices[device.Name] = device
-		log.Printf("registered device: %q %s %v", device.Name, device.HardwareVersion(), device)
+		log.Printf("registered device: %q %s", device.Name, device.HardwareVersion())
 	}
 
 	now := time.Now()
