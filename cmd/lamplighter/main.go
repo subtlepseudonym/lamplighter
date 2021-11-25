@@ -62,18 +62,19 @@ func scanDevice(filename string) (*lamplighter.Device, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s: dial device: %w", name, err)
 	}
+	defer conn.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	err = device.GetHardwareVersion(ctx, conn)
+	if err != nil {
+		return nil, fmt.Errorf("%s: get hardware version: %w", name, err)
+	}
+
 	bulb, err := light.Wrap(ctx, device, false)
 	if err != nil {
 		return nil, fmt.Errorf("%s: device is not a light: %w", name, err)
-	}
-
-	err = device.GetLabel(ctx, conn)
-	if err != nil {
-		log.Printf("get device label: %s", err)
 	}
 
 	return &lamplighter.Device{bulb}, nil
@@ -123,7 +124,7 @@ func main() {
 		label := device.Label().String()
 		key := strings.ToLower(label)
 		lamp.Devices[key] = device
-		log.Printf("registered device: %q", key)
+		log.Printf("registered device: %q %s", key, device.HardwareVersion())
 	}
 
 	now := time.Now()
