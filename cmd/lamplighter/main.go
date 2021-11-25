@@ -45,21 +45,22 @@ func scanDevice(filename string) (*lamplighter.Device, error) {
 	scanner.Scan()
 	mac := scanner.Text()
 
+	name := path.Base(filename)
 	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("scan device file: %w", err)
+		return nil, fmt.Errorf("scan device file %q: %w", name, err)
 	}
 
 	host := fmt.Sprintf("%s:%d", addr, lifxPort)
 	target, err := lifxlan.ParseTarget(mac)
 	if err != nil {
-		return nil, fmt.Errorf("parse mac address: %w", err)
+		return nil, fmt.Errorf("%s: parse mac address: %w", name, err)
 	}
 
 	device := lifxlan.NewDevice(host, lifxlan.ServiceUDP, target)
 
 	conn, err := device.Dial()
 	if err != nil {
-		return nil, fmt.Errorf("dial device: %w", err)
+		return nil, fmt.Errorf("%s: dial device: %w", name, err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -67,7 +68,7 @@ func scanDevice(filename string) (*lamplighter.Device, error) {
 
 	bulb, err := light.Wrap(ctx, device, false)
 	if err != nil {
-		return nil, fmt.Errorf("device is not a light: %w", err)
+		return nil, fmt.Errorf("%s: device is not a light: %w", name, err)
 	}
 
 	err = device.GetLabel(ctx, conn)
