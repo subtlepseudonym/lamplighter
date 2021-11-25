@@ -33,12 +33,12 @@ func New(location Location, offset time.Duration) Lamplighter {
 // This implements robfig/go-cron.Job
 func (l Lamplighter) Run() {
 	for _, device := range l.Devices {
-		go func() {
+		go func(lamp Device) {
 			err := lamp.Light()
 			if err != nil {
 				log.Printf("ERR: %s\n", err)
 			}
-		}()
+		}(*device)
 	}
 }
 
