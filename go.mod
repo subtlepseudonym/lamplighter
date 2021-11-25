@@ -7,4 +7,4 @@ require (
 	go.yhsif.com/lifxlan v0.3.0
 )
 
-replace go.yhsif.com/lifxlan v0.3.0 => github.com/subtlepseudonym/lifxlan v0.3.1
+replace go.yhsif.com/lifxlan v0.3.0 => github.com/subtlepseudonym/lifxlan v0.3.2

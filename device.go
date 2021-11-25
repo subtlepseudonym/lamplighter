@@ -42,21 +42,9 @@ func (d *Device) setBrightness(brightness uint16, transition time.Duration) erro
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	color := &lifxlan.Color{
-		Hue:        0, // technically green
-		Saturation: 0,
-		Brightness: brightness,
-		Kelvin:     KelvinNeutral,
-	}
-
-	err = d.SetPower(ctx, conn, 0, true)
+	err = d.SetLightPower(ctx, conn, lifxlan.Power(brightness), transition, false)
 	if err != nil {
-		return fmt.Errorf("%s: set power: %w", d.Name, err)
-	}
-
-	err = d.SetColor(ctx, conn, color, transition, true)
-	if err != nil {
-		return fmt.Errorf("%s: set color: %w", d.Name, err)
+		return fmt.Errorf("%s: set light power: %w", d.Name, err)
 	}
 
 	return nil
