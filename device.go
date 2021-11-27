@@ -22,14 +22,6 @@ const (
 // Device defines a desired state for a given lifx device
 type Device struct {
 	light.Device
-
-	Name       string
-	Brightness uint16
-	Transition time.Duration
-}
-
-func (d *Device) Light() error {
-	return d.setBrightness(d.Brightness, d.Transition)
 }
 
 func (d *Device) setBrightness(brightness uint16, transition time.Duration) error {
