@@ -9,7 +9,7 @@ build: format
 docker: format
 	docker build --network=host --tag ${BINARY}:${BUILD} -f Dockerfile .
 
-test:
+test: format
 	gotest --race ./...
 
 format fmt:
