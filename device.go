@@ -34,6 +34,14 @@ func (d *Device) Transition(desired *lifxlan.Color, transition time.Duration) er
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	if desired.Brightness == 0 {
+		err = d.SetLightPower(ctx, conn, lifxlan.PowerOff, transition, false)
+		if err != nil {
+			return fmt.Errorf("%s: set light power: %w", d.Label(), err)
+		}
+		return nil
+	}
+
 	power, err := d.GetPower(ctx, conn)
 	if err != nil {
 		return fmt.Errorf("%s: get power: %w", d.Label(), err)
