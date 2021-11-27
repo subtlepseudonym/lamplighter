@@ -1,20 +1,17 @@
 package main
 
 import (
-	"bufio"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"math"
 	"net/http"
 	"os"
-	"path"
-	"strconv"
+	"strings"
 	"time"
 
 	"github.com/subtlepseudonym/lamplighter"
+	"github.com/subtlepseudonym/lamplighter/cmd/lamplighter/config"
 
 	"github.com/robfig/cron/v3"
 	"go.yhsif.com/lifxlan"
@@ -22,43 +19,38 @@ import (
 )
 
 const (
-	deviceDirectory = "secrets/devices"
-	locationFile    = "secrets/home.loc"
+	configFile = "secrets/lamp.cfg"
 
-	listenAddr = ":9000"
-	lifxPort   = 56700
-
-	defaultTransition = 15 * time.Minute // duration over which to turn on devices
-	defaultOffset     = time.Hour        // duration before sunset to start transition
+	listenAddr   = ":9000"
+	lifxPort     = 56700
+	sunsetPrefix = "@sunset"
 )
 
-func scanDevice(filename string) (*lamplighter.Device, error) {
-	f, err := os.Open(filename)
+type Job struct {
+	Device     *lamplighter.Device
+	Color      *lifxlan.Color
+	Transition time.Duration
+}
+
+func (j Job) Run() {
+	log.Printf("transitioning %q over %s", j.Device.Label(), j.Transition)
+	err := j.Device.Transition(j.Color, j.Transition)
 	if err != nil {
-		return nil, fmt.Errorf("open device file: %w", err)
+		log.Printf("ERR: transition device: %s", err)
 	}
+}
 
-	scanner := bufio.NewScanner(f)
-
-	scanner.Scan()
-	host := fmt.Sprintf("%s:%d", scanner.Text(), lifxPort)
-
-	name := path.Base(filename)
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("scan device file %q: %w", name, err)
-	}
-
-	scanner.Scan()
-	target, err := lifxlan.ParseTarget(scanner.Text())
+func scanDevice(label string, dev config.Device) (*lamplighter.Device, error) {
+	host := fmt.Sprintf("%s:%d", dev.IP, lifxPort)
+	target, err := lifxlan.ParseTarget(dev.MAC)
 	if err != nil {
-		return nil, fmt.Errorf("%s: parse mac address: %w", name, err)
+		return nil, fmt.Errorf("%s: parse mac address: %w", label, err)
 	}
 
 	device := lifxlan.NewDevice(host, lifxlan.ServiceUDP, target)
-
 	conn, err := device.Dial()
 	if err != nil {
-		return nil, fmt.Errorf("%s: dial device: %w", name, err)
+		return nil, fmt.Errorf("%s: dial device: %w", label, err)
 	}
 	defer conn.Close()
 
@@ -67,37 +59,15 @@ func scanDevice(filename string) (*lamplighter.Device, error) {
 
 	err = device.GetHardwareVersion(ctx, conn)
 	if err != nil {
-		return nil, fmt.Errorf("%s: get hardware version: %w", name, err)
+		return nil, fmt.Errorf("%s: get hardware version: %w", label, err)
 	}
 
 	bulb, err := light.Wrap(ctx, device, false)
 	if err != nil {
-		return nil, fmt.Errorf("%s: device is not a light: %w", name, err)
+		return nil, fmt.Errorf("%s: device is not a light: %w", label, err)
 	}
 
-	scanner.Scan()
-	var brightness uint16
-	b, err := strconv.ParseUint(scanner.Text(), 10, 16)
-	if err != nil {
-		brightness = math.MaxUint16
-	} else {
-		brightness = uint16(b)
-	}
-
-	scanner.Scan()
-	var transition time.Duration
-	transition, err = time.ParseDuration(scanner.Text())
-	if err != nil {
-		transition = defaultTransition
-	}
-
-	d := &lamplighter.Device{
-		Device:     bulb,
-		Name:       name,
-		Brightness: brightness,
-		Transition: transition,
-	}
-	return d, nil
+	return &lamplighter.Device{bulb}, nil
 }
 
 func main() {
@@ -105,61 +75,82 @@ func main() {
 	if tz := os.Getenv("TZ"); tz != "" {
 		loc, err := time.LoadLocation(tz)
 		if err != nil {
-			log.Fatalf("load tz location: %s", err)
+			log.Fatalf("ERR: load tz location: %s", err)
 		}
 		time.Local = loc
 	}
 
-	locationBytes, err := ioutil.ReadFile(locationFile)
+	config, err := config.Open(configFile)
 	if err != nil {
-		log.Fatalf("read location file failed: %s", err)
+		log.Fatalf("ERR: read config file failed: %s", err)
 	}
 
-	var location lamplighter.Location
-	err = json.Unmarshal(locationBytes, &location)
-	if err != nil {
-		log.Printf("unmarshal location: %s", err)
-	}
-
-	lamp := lamplighter.New(location, defaultOffset)
-
-	devDir, err := os.Open(deviceDirectory)
-	if err != nil {
-		log.Fatalf("open devices file failed: %s", err)
-	}
-
-	deviceFiles, err := devDir.Readdirnames(0)
-	if err != nil {
-		log.Fatalf("read device directory: %s", err)
-	}
-
-	for _, filename := range deviceFiles {
-		filepath := path.Join(deviceDirectory, filename)
-		device, err := scanDevice(filepath)
+	devices := make(map[string]*lamplighter.Device)
+	for label, dev := range config.Devices {
+		device, err := scanDevice(label, dev)
 		if err != nil {
-			log.Printf("ERR: %s", err)
+			log.Printf("ERR: scan device: %s", err)
+			continue
+		}
+		devices[label] = device
+		log.Printf("registered device: %q %s", label, device.HardwareVersion())
+	}
+
+	lightCron := cron.New()
+	for _, job := range config.Jobs {
+		var schedule cron.Schedule
+		var err error
+
+		if strings.HasPrefix(job.Schedule, sunsetPrefix) {
+			s := strings.Split(job.Schedule, " ")
+
+			var duration time.Duration
+			if len(s) > 1 {
+				duration, err = time.ParseDuration(s[1])
+				if err != nil {
+					log.Printf("ERR: parse sunset offset: %s", err)
+					continue
+				}
+			}
+			schedule = lamplighter.SunsetSchedule{
+				Location: config.Location,
+				Offset:   duration,
+			}
+		} else {
+			schedule, err = cron.ParseStandard(job.Schedule)
+			if err != nil {
+				log.Printf("ERR: parse schedule: %s", err)
+				continue
+			}
+			log.Printf("NEXT -- %s", schedule.Next(time.Now()))
+		}
+
+		// conversion formulas are defined by lifx LAN documentation
+		// https://lan.developer.lifx.com/docs/representing-color-with-hsbk
+		color := &lifxlan.Color{
+			Hue:        uint16((job.Hue * 0x10000 / 360.0) % 0x10000),
+			Saturation: uint16(job.Saturation * math.MaxUint16 / 100.0),
+			Brightness: uint16(job.Brightness * math.MaxUint16 / 100.0),
+			Kelvin:     uint16(job.Kelvin),
+		}
+		color.Sanitize()
+
+		transition, err := time.ParseDuration(job.Transition)
+		if err != nil {
+			log.Printf("ERR: parse job transition: %s", err)
 			continue
 		}
 
-		lamp.Devices[device.Name] = device
-		log.Printf("registered device: %q %s", device.Name, device.HardwareVersion())
+		job := Job{
+			Device:     devices[job.Device],
+			Color:      color,
+			Transition: transition,
+		}
+		lightCron.Schedule(schedule, job)
 	}
-
-	now := time.Now()
-	sunset, err := lamplighter.GetSunset(location, now)
-	if err != nil {
-		panic(err)
-	}
-
-	if now.After(sunset.Add(-1 * defaultOffset)) {
-		lamp.Run()
-	}
-
-	cron := cron.New()
-	cron.Schedule(lamp, lamp)
 
 	mux := http.NewServeMux()
-	for label, device := range lamp.Devices {
+	for label, device := range devices {
 		dev := fmt.Sprintf("/%s", label)
 		mux.HandleFunc(dev, device.PowerHandler)
 
@@ -173,6 +164,6 @@ func main() {
 	}
 	log.Printf("listening on %s", srv.Addr)
 
-	cron.Start()
+	lightCron.Start()
 	log.Fatal(srv.ListenAndServe())
 }
