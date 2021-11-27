@@ -122,7 +122,6 @@ func main() {
 				log.Printf("ERR: parse schedule: %s", err)
 				continue
 			}
-			log.Printf("NEXT -- %s", schedule.Next(time.Now()))
 		}
 
 		// conversion formulas are defined by lifx LAN documentation
