@@ -33,20 +33,7 @@ type Job struct {
 }
 
 func (j Job) Run() {
-	if j.Device.Label() == nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
-		err := j.Device.GetLabel(ctx, nil)
-		if err != nil {
-			log.Printf("ERR: get device label: %w", err)
-			return
-		}
-	}
-
-	label := strings.ToLower(j.Device.Label().String())
-	log.Printf("transitioning %q over %s", label, j.Transition)
-
+	log.Printf("transitioning %q over %s", j.Device.Label, j.Transition)
 	err := j.Device.Transition(j.Color, j.Transition)
 	if err != nil {
 		log.Printf("ERR: transition device: %s", err)
@@ -80,7 +67,20 @@ func scanDevice(label string, dev config.Device) (*lamplighter.Device, error) {
 		return nil, fmt.Errorf("%s: device is not a light: %w", label, err)
 	}
 
-	return &lamplighter.Device{bulb}, nil
+	if j.Device.Label() == nil {
+		err := j.Device.GetLabel(ctx, conn)
+		if err != nil {
+			log.Printf("ERR: get device label: %w", err)
+			return
+		}
+	}
+
+	label := strings.ToLower(j.Device.Label().String())
+	dev := &lamplighter.Device{
+		Device: bulb,
+		Label: label,
+	}
+	return dev, nil
 }
 
 func main() {

@@ -20,6 +20,7 @@ const (
 
 type Device struct {
 	light.Device
+	Label string // prevent need to contact device for logging
 }
 
 func (d *Device) Transition(desired *lifxlan.Color, transition time.Duration) error {
