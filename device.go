@@ -104,8 +104,6 @@ func (d *Device) StatusHandler(w http.ResponseWriter, r *http.Request) {
 		float64(color.Brightness)/math.MaxUint16*100,
 		color.Kelvin,
 	)
-
-	fmt.Fprintf(w, `{"brightness": %.2f}`, float64(color.Brightness)/float64(math.MaxUint16))
 }
 
 func (d *Device) PowerHandler(w http.ResponseWriter, r *http.Request) {
