@@ -104,7 +104,7 @@ func (d *Device) StatusHandler(w http.ResponseWriter, r *http.Request) {
 		`{"hue": %.2f, "saturation": %.4f, "brightness": %.2f, "kelvin": %d}`,
 		float64(color.Hue)*360.0/0x10000,
 		float64(color.Saturation)/math.MaxUint16*100,
-		int(float64(color.Brightness)/math.MaxUint16*100),
+		float64(color.Brightness)/math.MaxUint16*100,
 		color.Kelvin,
 	)
 
@@ -114,10 +114,48 @@ func (d *Device) StatusHandler(w http.ResponseWriter, r *http.Request) {
 func (d *Device) PowerHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 
+	var hue uint16
+	if _, ok := r.Form["hue"]; ok {
+		param := r.FormValue("hue")
+		p, err := strconv.ParseFloat(param, 64)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(`{"error": "unable to parse hue parameter"}`))
+			return
+		}
+
+		if p < 0 {
+			p = 0
+		} else if p > 360 {
+			p = 360
+		}
+
+		hue = uint16(math.Floor((p / 360.0) * float64(math.MaxUint16)))
+	}
+
+	var saturation uint16
+	if _, ok := r.Form["saturation"]; ok {
+		param := r.FormValue("saturation")
+		p, err := strconv.ParseFloat(param, 64)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(`{"error": "unable to parse saturation parameter"}`))
+			return
+		}
+
+		if p < 0 {
+			p = 0
+		} else if p > 100 {
+			p = 100
+		}
+
+		saturation = uint16(math.Floor((p / 100.0) * float64(math.MaxUint16)))
+	}
+
 	var brightness uint16
 	if _, ok := r.Form["brightness"]; ok {
 		param := r.FormValue("brightness")
-		p, err := strconv.Atoi(param)
+		p, err := strconv.ParseFloat(param, 64)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte(`{"error": "unable to parse brightness parameter"}`))
@@ -130,10 +168,29 @@ func (d *Device) PowerHandler(w http.ResponseWriter, r *http.Request) {
 			p = 100
 		}
 
-		brightness = uint16(math.Floor((float64(p) / 100.0) * float64(math.MaxUint16)))
+		brightness = uint16(math.Floor((p / 100.0) * float64(math.MaxUint16)))
 	} else {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(`{"error": "brightness parameter is required"}`))
+	}
+
+	var kelvin uint16
+	if _, ok := r.Form["kelvin"]; ok {
+		param := r.FormValue("kelvin")
+		p, err := strconv.Atoi(param)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(`{"error": "unable to parse kelvin parameter"}`))
+			return
+		}
+
+		if p < 1500 {
+			p = 1500
+		} else if p > 9000 {
+			p = 9000
+		}
+
+		kelvin = uint16(p)
 	}
 
 	transition := defaultPowerTransition
@@ -152,7 +209,10 @@ func (d *Device) PowerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	color := &lifxlan.Color{
+		Hue:        hue,
+		Saturation: saturation,
 		Brightness: brightness,
+		Kelvin:     kelvin,
 	}
 
 	err := d.Transition(color, transition)
@@ -163,5 +223,13 @@ func (d *Device) PowerHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Fprintf(w, `{"brightness": %s}`, r.FormValue("brightness"))
+	fmt.Fprintf(
+		w,
+		`{"hue": %.2f, "saturation": %.4f, "brightness": %.2f, "kelvin": %d, "transition": %q}`,
+		float64(color.Hue)*360.0/0x10000,
+		float64(color.Saturation)/math.MaxUint16*100,
+		float64(color.Brightness)/math.MaxUint16*100,
+		color.Kelvin,
+		transition,
+	)
 }
