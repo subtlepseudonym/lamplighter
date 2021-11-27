@@ -44,14 +44,14 @@ func (d *Device) Transition(desired *lifxlan.Color, transition time.Duration) er
 	if desired.Brightness == 0 {
 		err = d.SetLightPower(ctx, conn, lifxlan.PowerOff, transition, false)
 		if err != nil {
-			return fmt.Errorf("%s: set light power: %w", label, err)
+			return fmt.Errorf("%s: set light power: %w", d.Label, err)
 		}
 		return nil
 	}
 
 	power, err := d.GetPower(ctx, conn)
 	if err != nil {
-		return fmt.Errorf("%s: get power: %w", label, err)
+		return fmt.Errorf("%s: get power: %w", d.Label, err)
 	}
 
 	// if power is off, reset bulb brightness to 0 and turn on
@@ -61,18 +61,18 @@ func (d *Device) Transition(desired *lifxlan.Color, transition time.Duration) er
 
 		err = d.SetColor(ctx, conn, &color, time.Millisecond, false)
 		if err != nil {
-			return fmt.Errorf("%s: reset color: %w", label, err)
+			return fmt.Errorf("%s: reset color: %w", d.Label, err)
 		}
 
 		err = d.SetPower(ctx, conn, lifxlan.PowerOn, false)
 		if err != nil {
-			return fmt.Errorf("%s: set power: %w", label, err)
+			return fmt.Errorf("%s: set power: %w", d.Label, err)
 		}
 	}
 
 	err = d.SetColor(ctx, conn, desired, transition, false)
 	if err != nil {
-		return fmt.Errorf("%s: set color: %w", label, err)
+		return fmt.Errorf("%s: set color: %w", d.Label, err)
 	}
 
 	return nil
@@ -81,6 +81,7 @@ func (d *Device) Transition(desired *lifxlan.Color, transition time.Duration) er
 func (d *Device) StatusHandler(w http.ResponseWriter, r *http.Request) {
 	conn, err := d.Dial()
 	if err != nil {
+		log.Printf("ERR: %s: dial: %s", d.Label, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(`{"error": "unable to connect to device"}`))
 		return
@@ -92,6 +93,7 @@ func (d *Device) StatusHandler(w http.ResponseWriter, r *http.Request) {
 
 	color, err := d.GetColor(ctx, conn)
 	if err != nil {
+		log.Printf("ERR: %s: get color: %s", d.Label, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(`{"error": "unable to get device brightness state"}`))
 		return
@@ -115,6 +117,7 @@ func (d *Device) PowerHandler(w http.ResponseWriter, r *http.Request) {
 		param := r.FormValue("hue")
 		p, err := strconv.ParseFloat(param, 64)
 		if err != nil {
+			log.Printf("ERR: %s: parse hue param %q: %s", d.Label, param, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte(`{"error": "unable to parse hue parameter"}`))
 			return
@@ -134,6 +137,7 @@ func (d *Device) PowerHandler(w http.ResponseWriter, r *http.Request) {
 		param := r.FormValue("saturation")
 		p, err := strconv.ParseFloat(param, 64)
 		if err != nil {
+			log.Printf("ERR: %s: parse saturation param %q: %s", d.Label, param, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte(`{"error": "unable to parse saturation parameter"}`))
 			return
@@ -153,6 +157,7 @@ func (d *Device) PowerHandler(w http.ResponseWriter, r *http.Request) {
 		param := r.FormValue("brightness")
 		p, err := strconv.ParseFloat(param, 64)
 		if err != nil {
+			log.Printf("ERR: %s: parse brightness param %q: %s", d.Label, param, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte(`{"error": "unable to parse brightness parameter"}`))
 			return
@@ -175,6 +180,7 @@ func (d *Device) PowerHandler(w http.ResponseWriter, r *http.Request) {
 		param := r.FormValue("kelvin")
 		p, err := strconv.Atoi(param)
 		if err != nil {
+			log.Printf("ERR: %s: parse kelvin param %q: %s", d.Label, param, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte(`{"error": "unable to parse kelvin parameter"}`))
 			return
@@ -199,7 +205,10 @@ func (d *Device) PowerHandler(w http.ResponseWriter, r *http.Request) {
 
 		parsed, err := time.ParseDuration(param)
 		if err != nil {
-			log.Printf("ERR: parse transition param %q: %s", param, err)
+			log.Printf("ERR: %s: parse transition param %q: %s", d.Label, param, err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(`{"error": "unable to parse transition parameter"}`))
+			return
 		}
 		transition = parsed
 	}
@@ -213,7 +222,7 @@ func (d *Device) PowerHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := d.Transition(color, transition)
 	if err != nil {
-		log.Printf("ERR: %s: %s", r.URL.Path, err)
+		log.Printf("ERR: %s: transition: %s", d.Label, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(`{"error": "unable to set brightness on device"}`))
 		return

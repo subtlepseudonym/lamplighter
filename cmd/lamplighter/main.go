@@ -33,7 +33,7 @@ type Job struct {
 }
 
 func (j Job) Run() {
-	log.Printf("transitioning %q over %s", j.Device.Label, j.Transition)
+	log.Printf("%s: transitioning over %s", j.Device.Label, j.Transition)
 	err := j.Device.Transition(j.Color, j.Transition)
 	if err != nil {
 		log.Printf("ERR: transition device: %s", err)
