@@ -24,7 +24,7 @@ type Device struct {
 	light.Device
 }
 
-func (d *Device) setBrightness(brightness uint16, transition time.Duration) error {
+func (d *Device) Transition(desired *lifxlan.Color, transition time.Duration) error {
 	conn, err := d.Dial()
 	if err != nil {
 		return fmt.Errorf("dial: %w", err)
@@ -34,11 +34,6 @@ func (d *Device) setBrightness(brightness uint16, transition time.Duration) erro
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	color, err := d.GetColor(ctx, conn)
-	if err != nil {
-		return fmt.Errorf("%s: get color: %w", d.Name, err)
-	}
-
 	power, err := d.GetPower(ctx, conn)
 	if err != nil {
 		return fmt.Errorf("%s: get power: %w", d.Label(), err)
@@ -46,8 +41,10 @@ func (d *Device) setBrightness(brightness uint16, transition time.Duration) erro
 
 	// if power is off, reset bulb brightness to 0 and turn on
 	if power == lifxlan.PowerOff {
+		color := *desired
 		color.Brightness = 0
-		err = d.SetColor(ctx, conn, color, time.Millisecond, false)
+
+		err = d.SetColor(ctx, conn, &color, time.Millisecond, false)
 		if err != nil {
 			return fmt.Errorf("%s: reset color: %w", d.Label(), err)
 		}
@@ -58,8 +55,7 @@ func (d *Device) setBrightness(brightness uint16, transition time.Duration) erro
 		}
 	}
 
-	color.Brightness = brightness
-	err = d.SetColor(ctx, conn, color, transition, false)
+	err = d.SetColor(ctx, conn, desired, transition, false)
 	if err != nil {
 		return fmt.Errorf("%s: set color: %w", d.Label(), err)
 	}
@@ -138,7 +134,11 @@ func (d *Device) PowerHandler(w http.ResponseWriter, r *http.Request) {
 		transition = parsed
 	}
 
-	err := d.setBrightness(brightness, transition)
+	color := &lifxlan.Color{
+		Brightness: brightness,
+	}
+
+	err := d.Transition(color, transition)
 	if err != nil {
 		log.Printf("ERR: %s: %s", r.URL.Path, err)
 		w.WriteHeader(http.StatusInternalServerError)
