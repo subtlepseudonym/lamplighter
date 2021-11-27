@@ -7,6 +7,7 @@ import (
 	"math"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"go.yhsif.com/lifxlan"
@@ -34,17 +35,25 @@ func (d *Device) Transition(desired *lifxlan.Color, transition time.Duration) er
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	if d.Label() == nil {
+		err = d.GetLabel(ctx, conn)
+		if err != nil {
+			return fmt.Errorf("get device label: %w", err)
+		}
+	}
+	label := strings.ToLower(d.Label().String())
+
 	if desired.Brightness == 0 {
 		err = d.SetLightPower(ctx, conn, lifxlan.PowerOff, transition, false)
 		if err != nil {
-			return fmt.Errorf("%s: set light power: %w", d.Label(), err)
+			return fmt.Errorf("%s: set light power: %w", label, err)
 		}
 		return nil
 	}
 
 	power, err := d.GetPower(ctx, conn)
 	if err != nil {
-		return fmt.Errorf("%s: get power: %w", d.Label(), err)
+		return fmt.Errorf("%s: get power: %w", label, err)
 	}
 
 	// if power is off, reset bulb brightness to 0 and turn on
@@ -54,18 +63,18 @@ func (d *Device) Transition(desired *lifxlan.Color, transition time.Duration) er
 
 		err = d.SetColor(ctx, conn, &color, time.Millisecond, false)
 		if err != nil {
-			return fmt.Errorf("%s: reset color: %w", d.Label(), err)
+			return fmt.Errorf("%s: reset color: %w", label, err)
 		}
 
 		err = d.SetPower(ctx, conn, lifxlan.PowerOn, false)
 		if err != nil {
-			return fmt.Errorf("%s: set power: %w", d.Label(), err)
+			return fmt.Errorf("%s: set power: %w", label, err)
 		}
 	}
 
 	err = d.SetColor(ctx, conn, desired, transition, false)
 	if err != nil {
-		return fmt.Errorf("%s: set color: %w", d.Label(), err)
+		return fmt.Errorf("%s: set color: %w", label, err)
 	}
 
 	return nil

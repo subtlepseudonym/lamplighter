@@ -33,7 +33,20 @@ type Job struct {
 }
 
 func (j Job) Run() {
-	log.Printf("transitioning %q over %s", j.Device.Label(), j.Transition)
+	if j.Device.Label() == nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		err := j.Device.GetLabel(ctx, nil)
+		if err != nil {
+			log.Printf("ERR: get device label: %w", err)
+			return
+		}
+	}
+
+	label := strings.ToLower(j.Device.Label().String())
+	log.Printf("transitioning %q over %s", label, j.Transition)
+
 	err := j.Device.Transition(j.Color, j.Transition)
 	if err != nil {
 		log.Printf("ERR: transition device: %s", err)
