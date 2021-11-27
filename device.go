@@ -16,11 +16,8 @@ import (
 
 const (
 	defaultPowerTransition = 2 * time.Second
-
-	KelvinNeutral = 3000
 )
 
-// Device defines a desired state for a given lifx device
 type Device struct {
 	light.Device
 }
