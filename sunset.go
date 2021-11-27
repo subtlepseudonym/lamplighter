@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 )
@@ -20,6 +21,7 @@ const (
 	solarURL        = "https://api.sunrise-sunset.org/json"
 	solarTimeFormat = "3:04:05 PM"
 	dateString      = "2006-01-02"
+	retryLimit      = 3
 )
 
 type Location struct {
@@ -35,6 +37,49 @@ type SolarResponse struct {
 // SolarData is the sunset data for a given location
 type SolarData struct {
 	Sunset time.Time `json:"sunset"`
+}
+
+type SunsetSchedule struct {
+	Location Location      `json:"location"`
+	Offset   time.Duration `json:"offset"`
+
+	errCount int `json:"-"`
+}
+
+// Next returns the time of next sunset, given the SunsetSchedule's
+// location value
+//
+// This implements robfic/cron.Schedule
+func (s SunsetSchedule) Next(now time.Time) time.Time {
+	sunset, err := GetSunset(s.Location, now)
+	if err != nil {
+		log.Printf("get sunset: %s", err)
+		if s.errCount >= retryLimit {
+			return time.Time{}
+		}
+
+		s.errCount++
+		return time.Now().Add(time.Minute)
+	}
+
+	lightTime := sunset.Add(s.Offset)
+	if now.After(lightTime) || now.Equal(lightTime) {
+		sunset, err = GetSunset(s.Location, now.AddDate(0, 0, 1))
+		if err != nil {
+			log.Printf("get sunset: %s", err)
+			if s.errCount >= retryLimit {
+				return time.Time{}
+			}
+
+			s.errCount++
+			return time.Now().Add(time.Minute)
+		}
+		lightTime = sunset.Add(s.Offset)
+	}
+
+	s.errCount = 0
+	log.Printf("next sunset %s: %s", s.Offset, lightTime.Local().Format(time.RFC3339))
+	return lightTime
 }
 
 func GetSunset(location Location, date time.Time) (time.Time, error) {
