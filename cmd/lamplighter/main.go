@@ -65,6 +65,7 @@ func main() {
 		log.Printf("registered device: %q %s", label, device.HardwareVersion())
 	}
 
+	now := time.Now() // used for logging cron entries
 	lightCron := cron.New()
 	for _, job := range config.Jobs {
 		var schedule cron.Schedule
@@ -115,6 +116,8 @@ func main() {
 			Transition: transition,
 		}
 		lightCron.Schedule(schedule, job)
+
+		log.Printf("job: %s: %s", schedule.Next(now).Local().Format(time.RFC3339), job.Device.Label)
 	}
 
 	mux := http.NewServeMux()

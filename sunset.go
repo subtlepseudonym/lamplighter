@@ -1,7 +1,6 @@
 package lamplighter
 
 import (
-	"log"
 	"time"
 
 	"github.com/nathan-osman/go-sunrise"
@@ -42,6 +41,5 @@ func (s SunsetSchedule) Next(now time.Time) time.Time {
 		lightTime = sunset.Add(s.Offset)
 	}
 
-	log.Printf("next sunset %s: %s", s.Offset, lightTime.Local().Format(time.RFC3339))
 	return lightTime
 }
