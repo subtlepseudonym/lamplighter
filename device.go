@@ -49,7 +49,7 @@ func (d *Device) setBrightness(brightness uint16, transition time.Duration) erro
 
 	power, err := d.GetPower(ctx, conn)
 	if err != nil {
-		return fmt.Errorf("%s: get power: %w", d.Name, err)
+		return fmt.Errorf("%s: get power: %w", d.Label(), err)
 	}
 
 	// if power is off, reset bulb brightness to 0 and turn on
@@ -57,19 +57,19 @@ func (d *Device) setBrightness(brightness uint16, transition time.Duration) erro
 		color.Brightness = 0
 		err = d.SetColor(ctx, conn, color, time.Millisecond, false)
 		if err != nil {
-			return fmt.Errorf("%s: reset color: %w", d.Name, err)
+			return fmt.Errorf("%s: reset color: %w", d.Label(), err)
 		}
 
 		err = d.SetPower(ctx, conn, lifxlan.PowerOn, false)
 		if err != nil {
-			return fmt.Errorf("%s: set power: %w", d.Name, err)
+			return fmt.Errorf("%s: set power: %w", d.Label(), err)
 		}
 	}
 
 	color.Brightness = brightness
 	err = d.SetColor(ctx, conn, color, transition, false)
 	if err != nil {
-		return fmt.Errorf("%s: set color: %w", d.Name, err)
+		return fmt.Errorf("%s: set color: %w", d.Label(), err)
 	}
 
 	return nil
