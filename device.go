@@ -23,23 +23,62 @@ type Device struct {
 	Label string // prevent need to contact device for logging
 }
 
-func (d *Device) Transition(desired *lifxlan.Color, transition time.Duration) error {
-	conn, err := d.Dial()
+// ConnectToDevice takes a label (for logging), a host in ip:port
+// format and a mac address to locate a device on the network, connect
+// to it, and retrieve the label and hardware version
+func ConnectToDevice(label, host, mac string) (*Device, error) {
+	target, err := lifxlan.ParseTarget(mac)
 	if err != nil {
-		return fmt.Errorf("dial: %w", err)
+		return nil, fmt.Errorf("%s: parse mac address: %w", label, err)
+	}
+
+	device := lifxlan.NewDevice(host, lifxlan.ServiceUDP, target)
+	conn, err := device.Dial()
+	if err != nil {
+		return nil, fmt.Errorf("%s: dial device: %w", label, err)
 	}
 	defer conn.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	if d.Label() == nil {
-		err = d.GetLabel(ctx, conn)
+	err = device.GetHardwareVersion(ctx, conn)
+	if err != nil {
+		return nil, fmt.Errorf("%s: get hardware version: %w", label, err)
+	}
+
+	bulb, err := light.Wrap(ctx, device, false)
+	if err != nil {
+		return nil, fmt.Errorf("%s: device is not a light: %w", label, err)
+	}
+
+	if device.Label() == nil {
+		err := device.GetLabel(ctx, conn)
 		if err != nil {
-			return fmt.Errorf("get device label: %w", err)
+			log.Printf("ERR: get device label: %w", err)
 		}
 	}
-	label := strings.ToLower(d.Label().String())
+
+	if device.Label() != nil {
+		label = strings.ToLower(device.Label().String())
+	}
+
+	dev := &Device{
+		Device: bulb,
+		Label:  label,
+	}
+	return dev, nil
+}
+
+func (d *Device) Transition(desired *lifxlan.Color, transition time.Duration) error {
+	conn, err := d.Dial()
+	if err != nil {
+		return fmt.Errorf("%s: dial: %w", d.Label, err)
+	}
+	defer conn.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
 	if desired.Brightness == 0 {
 		err = d.SetLightPower(ctx, conn, lifxlan.PowerOff, transition, false)

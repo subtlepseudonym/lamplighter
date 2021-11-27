@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"math"
@@ -15,7 +14,6 @@ import (
 
 	"github.com/robfig/cron/v3"
 	"go.yhsif.com/lifxlan"
-	"go.yhsif.com/lifxlan/light"
 )
 
 const (
@@ -40,49 +38,6 @@ func (j Job) Run() {
 	}
 }
 
-func scanDevice(label string, dev config.Device) (*lamplighter.Device, error) {
-	host := fmt.Sprintf("%s:%d", dev.IP, lifxPort)
-	target, err := lifxlan.ParseTarget(dev.MAC)
-	if err != nil {
-		return nil, fmt.Errorf("%s: parse mac address: %w", label, err)
-	}
-
-	device := lifxlan.NewDevice(host, lifxlan.ServiceUDP, target)
-	conn, err := device.Dial()
-	if err != nil {
-		return nil, fmt.Errorf("%s: dial device: %w", label, err)
-	}
-	defer conn.Close()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	err = device.GetHardwareVersion(ctx, conn)
-	if err != nil {
-		return nil, fmt.Errorf("%s: get hardware version: %w", label, err)
-	}
-
-	bulb, err := light.Wrap(ctx, device, false)
-	if err != nil {
-		return nil, fmt.Errorf("%s: device is not a light: %w", label, err)
-	}
-
-	if j.Device.Label() == nil {
-		err := j.Device.GetLabel(ctx, conn)
-		if err != nil {
-			log.Printf("ERR: get device label: %w", err)
-			return
-		}
-	}
-
-	label := strings.ToLower(j.Device.Label().String())
-	dev := &lamplighter.Device{
-		Device: bulb,
-		Label: label,
-	}
-	return dev, nil
-}
-
 func main() {
 	// manually set local timezone for docker container
 	if tz := os.Getenv("TZ"); tz != "" {
@@ -100,7 +55,8 @@ func main() {
 
 	devices := make(map[string]*lamplighter.Device)
 	for label, dev := range config.Devices {
-		device, err := scanDevice(label, dev)
+		host := fmt.Sprintf("%s:%d", dev.IP, lifxPort)
+		device, err := lamplighter.ConnectToDevice(label, host, dev.MAC)
 		if err != nil {
 			log.Printf("ERR: scan device: %s", err)
 			continue
