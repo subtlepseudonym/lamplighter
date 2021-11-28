@@ -140,7 +140,7 @@ func (d *Device) StatusHandler(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Fprintf(
 		w,
-		`{"hue": %.2f, "saturation": %.4f, "brightness": %.2f, "kelvin": %d}`,
+		`{"hue": %.2f, "saturation": %.2f, "brightness": %.2f, "kelvin": %d}`,
 		float64(color.Hue)*360.0/0x10000,
 		float64(color.Saturation)/math.MaxUint16*100,
 		float64(color.Brightness)/math.MaxUint16*100,
@@ -269,7 +269,7 @@ func (d *Device) PowerHandler(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Fprintf(
 		w,
-		`{"hue": %.2f, "saturation": %.4f, "brightness": %.2f, "kelvin": %d, "transition": %q}`,
+		`{"hue": %.2f, "saturation": %.2f, "brightness": %.2f, "kelvin": %d, "transition": %q}`,
 		float64(color.Hue)*360.0/0x10000,
 		float64(color.Saturation)/math.MaxUint16*100,
 		float64(color.Brightness)/math.MaxUint16*100,
