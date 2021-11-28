@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"math"
@@ -36,6 +37,45 @@ func (j Job) Run() {
 	if err != nil {
 		log.Printf("ERR: transition device: %s", err)
 	}
+}
+
+type Entry struct {
+	Next       string  `json:"next"`
+	Device     string  `json:"device"`
+	Hue        float64 `json:"hue"`
+	Saturation float64 `json:"saturation"`
+	Brightness float64 `json:"brightness"`
+	Kelvin     uint16  `json:"kelvin"`
+	Transition string  `json:"transition"`
+}
+
+func entryHandler(lightCron *cron.Cron) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var entries []Entry
+		for _, entry := range lightCron.Entries() {
+			job, ok := entry.Job.(Job)
+			if !ok {
+				log.Printf("ERR: cast cron job to lamplighter job: %t", entry.Job)
+				continue
+			}
+
+			entry := Entry{
+				Next:       entry.Schedule.Next(time.Now()).Local().Format(time.RFC3339),
+				Device:     job.Device.Label,
+				Hue:        float64(job.Color.Hue) * 360.0 / 0x10000,
+				Saturation: float64(job.Color.Saturation) / math.MaxUint16 * 100,
+				Brightness: float64(job.Color.Brightness) / math.MaxUint16 * 100,
+				Kelvin:     job.Color.Kelvin,
+				Transition: job.Transition.String(),
+			}
+			entries = append(entries, entry)
+		}
+
+		err := json.NewEncoder(w).Encode(entries)
+		if err != nil {
+			log.Printf("ERR: write entries: %s", err)
+		}
+	})
 }
 
 func main() {
@@ -128,6 +168,8 @@ func main() {
 		status := fmt.Sprintf("/%s/status", label)
 		mux.HandleFunc(status, device.StatusHandler)
 	}
+
+	mux.HandleFunc("/entries", entryHandler(lightCron))
 
 	srv := http.Server{
 		Addr:    listenAddr,
