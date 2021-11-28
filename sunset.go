@@ -31,12 +31,13 @@ func (s SunsetSchedule) Next(now time.Time) time.Time {
 	lightTime := sunset.Add(s.Offset)
 
 	if now.After(lightTime) || now.Equal(lightTime) {
-		_, sunset := sunrise.SunriseSunset(
+		tomorrow := now.AddDate(0, 0, 1)
+		_, sunset = sunrise.SunriseSunset(
 			s.Location.Latitude,
 			s.Location.Longitude,
-			now.Year(),
-			now.Month(),
-			now.Day(),
+			tomorrow.Year(),
+			tomorrow.Month(),
+			tomorrow.Day(),
 		)
 		lightTime = sunset.Add(s.Offset)
 	}
