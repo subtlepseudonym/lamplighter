@@ -32,7 +32,16 @@ type Job struct {
 }
 
 func (j Job) Run() {
-	log.Printf("%s: transitioning over %s", j.Device.Label, j.Transition)
+	log.Printf(
+		`{"device": %q, "hue": %.2f, "saturation": %.2f, "brightness": %.2f, "kelvin": %d, "transition": %q}`,
+		j.Device.Label,
+		float64(j.Color.Hue)*360.0/0x10000,
+		float64(j.Color.Saturation)/math.MaxUint16*100,
+		float64(j.Color.Brightness)/math.MaxUint16*100,
+		j.Color.Kelvin,
+		j.Transition,
+	)
+
 	err := j.Device.Transition(j.Color, j.Transition)
 	if err != nil {
 		log.Printf("ERR: transition device: %s", err)
