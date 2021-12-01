@@ -55,7 +55,7 @@ func ConnectToDevice(label, host, mac string) (*Device, error) {
 	if device.Label() == nil {
 		err := device.GetLabel(ctx, conn)
 		if err != nil {
-			log.Printf("ERR: get device label: %w", err)
+			log.Printf("ERR: get device label: %s", err)
 		}
 	}
 
