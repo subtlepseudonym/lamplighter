@@ -1,5 +1,6 @@
 BINARY=lamplighter
 BUILD=$$(vtag --no-meta)
+TAG="${BINARY}:${BUILD}"
 
 default: build
 
@@ -7,7 +8,7 @@ build: format
 	go build -o ${BINARY} -v ./cmd/lamplighter
 
 docker: format
-	docker build --network=host --tag ${BINARY}:${BUILD} -f Dockerfile .
+	docker build --network=host --tag ${TAG} -f Dockerfile .
 
 test: format
 	gotest --race ./...
