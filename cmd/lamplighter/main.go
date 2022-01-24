@@ -122,6 +122,11 @@ func main() {
 	now := time.Now() // used for logging cron entries
 	lightCron := cron.New()
 	for _, job := range config.Jobs {
+		if _, ok := devices[job.Device]; !ok {
+			log.Printf("ERR: device %q not registered, skipping job", job.Device)
+			continue
+		}
+
 		var schedule cron.Schedule
 		var err error
 
