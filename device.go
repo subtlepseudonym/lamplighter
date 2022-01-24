@@ -274,7 +274,7 @@ func (d *Device) PowerHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := d.Transition(color, transition)
 	if err != nil {
-		log.Printf("ERR: %s: transition: %s", d.Label, err)
+		log.Printf("ERR: transition: %s", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(`{"error": "unable to set brightness on device"}`))
 		return
