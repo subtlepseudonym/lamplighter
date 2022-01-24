@@ -169,14 +169,14 @@ func main() {
 			continue
 		}
 
-		job := Job{
+		j := Job{
 			Device:     devices[job.Device],
 			Color:      color,
 			Transition: transition,
 		}
-		lightCron.Schedule(schedule, job)
+		lightCron.Schedule(schedule, j)
 
-		log.Printf("job: %s: %s", schedule.Next(now).Local().Format(time.RFC3339), job.Device.Label)
+		log.Printf("job: %s: %s", schedule.Next(now).Local().Format(time.RFC3339), j.Device.Label)
 	}
 
 	mux := http.NewServeMux()
