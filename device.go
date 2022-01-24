@@ -94,7 +94,7 @@ func (d *Device) Transition(desired *lifxlan.Color, transition time.Duration) er
 	defer cancel()
 
 	if desired.Brightness == 0 {
-		err = d.SetLightPower(ctx, conn, lifxlan.PowerOff, transition, false)
+		err = d.SetLightPower(ctx, conn, lifxlan.PowerOff, transition, true)
 		if err != nil {
 			return fmt.Errorf("%s: set light power: %w", d.Label, err)
 		}
@@ -111,18 +111,18 @@ func (d *Device) Transition(desired *lifxlan.Color, transition time.Duration) er
 		color := *desired
 		color.Brightness = 0
 
-		err = d.SetColor(ctx, conn, &color, time.Millisecond, false)
+		err = d.SetColor(ctx, conn, &color, time.Millisecond, true)
 		if err != nil {
 			return fmt.Errorf("%s: reset color: %w", d.Label, err)
 		}
 
-		err = d.SetPower(ctx, conn, lifxlan.PowerOn, false)
+		err = d.SetPower(ctx, conn, lifxlan.PowerOn, true)
 		if err != nil {
 			return fmt.Errorf("%s: set power: %w", d.Label, err)
 		}
 	}
 
-	err = d.SetColor(ctx, conn, desired, transition, false)
+	err = d.SetColor(ctx, conn, desired, transition, true)
 	if err != nil {
 		return fmt.Errorf("%s: set color: %w", d.Label, err)
 	}
