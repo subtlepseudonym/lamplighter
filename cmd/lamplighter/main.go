@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	configFile = "secrets/lamp.cfg"
+	configFile = "config/lamp.cfg"
 
 	listenAddr   = ":9000"
 	lifxPort     = 56700
