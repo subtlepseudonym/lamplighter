@@ -102,6 +102,11 @@ func main() {
 		log.Fatalf("ERR: read config file failed: %s", err)
 	}
 
+	err = config.Validate()
+	if err != nil {
+		log.Fatalf("ERR: invalid config: %s", err)
+	}
+
 	devices := make(map[string]*lamplighter.Device)
 	for label, dev := range config.Devices {
 		host := fmt.Sprintf("%s:%d", dev.IP, lifxPort)
