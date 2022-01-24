@@ -2,6 +2,7 @@ package lamplighter
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -16,6 +17,7 @@ import (
 
 const (
 	defaultPowerTransition = 2 * time.Second
+	retryLimit             = 5
 )
 
 type Device struct {
@@ -39,12 +41,23 @@ func ConnectToDevice(label, host, mac string) (*Device, error) {
 	}
 	defer conn.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	err = device.GetHardwareVersion(ctx, conn)
+	var retries int
+	for retries < retryLimit {
+		// This tends to fail intermittently, so retry it a few times
+		err = device.GetHardwareVersion(ctx, conn)
+		if err == nil || !errors.Is(err, context.DeadlineExceeded) {
+			break
+		}
+
+		// Be _mildly_ polite
+		time.Sleep(500 * time.Millisecond)
+		retries += 1
+	}
 	if err != nil {
-		return nil, fmt.Errorf("%s: get hardware version: %w", label, err)
+		return nil, fmt.Errorf("%s: retries %d: get hardware version: %w", label, retries, err)
 	}
 
 	bulb, err := light.Wrap(ctx, device, false)
