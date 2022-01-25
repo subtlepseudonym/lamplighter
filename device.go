@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -34,8 +35,8 @@ func ConnectToDevice(label, host, mac string) (*Device, error) {
 		return nil, fmt.Errorf("%s: parse mac address: %w", label, err)
 	}
 
-	device := lifxlan.NewDevice(host, lifxlan.ServiceUDP, target)
-	conn, err := device.Dial()
+	dev := lifxlan.NewDevice(host, lifxlan.ServiceUDP, target)
+	conn, err := dev.Dial()
 	if err != nil {
 		return nil, fmt.Errorf("%s: dial device: %w", label, err)
 	}
@@ -44,43 +45,67 @@ func ConnectToDevice(label, host, mac string) (*Device, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	var retries int
-	for retries < retryLimit {
+	bulb, err := light.Wrap(ctx, dev, false)
+	if err != nil {
+		return nil, fmt.Errorf("%s: device is not a light: %w", label, err)
+	}
+
+	device := &Device{
+		Device: bulb,
+	}
+
+	err = device.GetHardwareVersion(ctx, conn)
+	if err != nil {
+		return nil, fmt.Errorf("%s: get hardware version: %w", label, err)
+	}
+
+	if device.Device.Label().String() != lifxlan.EmptyLabel {
+		device.Label = strings.ToLower(device.Device.Label().String())
+	}
+
+	return device, nil
+}
+
+// GetHardwareVersion wraps the underlying method of the same name and adds retries.
+func (d *Device) GetHardwareVersion(ctx context.Context, conn net.Conn) error {
+	var err error
+	for i := 0; i < retryLimit; i++ {
 		// This tends to fail intermittently, so retry it a few times
-		err = device.GetHardwareVersion(ctx, conn)
+		err = d.Device.GetHardwareVersion(ctx, conn)
 		if err == nil || !errors.Is(err, context.DeadlineExceeded) {
 			break
 		}
 
 		// Be _mildly_ polite
 		time.Sleep(500 * time.Millisecond)
-		retries += 1
-	}
-	if err != nil {
-		return nil, fmt.Errorf("%s: retries %d: get hardware version: %w", label, retries, err)
 	}
 
-	bulb, err := light.Wrap(ctx, device, false)
 	if err != nil {
-		return nil, fmt.Errorf("%s: device is not a light: %w", label, err)
+		return fmt.Errorf("%s: get hardware version: %w", d.Label, err)
 	}
+	return nil
+}
 
-	if device.Label() == nil {
-		err := device.GetLabel(ctx, conn)
-		if err != nil {
-			log.Printf("ERR: get device label: %s", err)
+// GetPower wraps the underlying method of the same name and adds retries.
+func (d *Device) GetPower(ctx context.Context, conn net.Conn) (lifxlan.Power, error) {
+	var power lifxlan.Power
+	var err error
+
+	for i := 0; i < retryLimit; i++ {
+		// This tends to fail intermittently, so retry it a few times
+		power, err = d.Device.GetPower(ctx, conn)
+		if err == nil || !errors.Is(err, context.DeadlineExceeded) {
+			break
 		}
+
+		// Be _mildly_ polite
+		time.Sleep(500 * time.Millisecond)
 	}
 
-	if device.Label() != nil {
-		label = strings.ToLower(device.Label().String())
+	if err != nil {
+		return lifxlan.PowerOff, fmt.Errorf("%s: get power: %w", d.Label, err)
 	}
-
-	dev := &Device{
-		Device: bulb,
-		Label:  label,
-	}
-	return dev, nil
+	return power, nil
 }
 
 func (d *Device) Transition(desired *lifxlan.Color, transition time.Duration) error {
