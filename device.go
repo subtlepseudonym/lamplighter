@@ -45,6 +45,11 @@ func ConnectToDevice(label, host, mac string) (*Device, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
+	err = dev.Echo(ctx, conn)
+	if err != nil {
+		return nil, fmt.Errorf("%s: echo device: %w", label, err)
+	}
+
 	bulb, err := light.Wrap(ctx, dev, false)
 	if err != nil {
 		return nil, fmt.Errorf("%s: device is not a light: %w", label, err)
