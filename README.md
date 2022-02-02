@@ -24,7 +24,7 @@ This project can also be compiled and run natively by calling `make build` and r
 
 ### Configuration
 
-A config file should be included at `config/lamp.cfg`. The JSON structure of the config is defined by `cmd/lamplighter/config/config.go`. This contains the location, names ,and network information of your bulbs as well as their schedules for changing states. Lamplighter uses a (very lightly) modified cron parser for scheduling state transitions. In addition to the cron formats [supported by robfig/cron](https://github.com/robfig/cron/#background---cron-spec-format), lamplighter can parse the format `@sunset $OFFSET` where `$OFFSET` is a duration string parseable by go's `time.ParseDuration` function.
+A config file should be included at `config/lamp.cfg`. The JSON structure of the config is defined by `cmd/lamplighter/config/config.go`. This contains the location, names, and network information of your bulbs as well as their schedules for changing states. Lamplighter uses a (very lightly) modified cron parser for scheduling state transitions. In addition to the cron formats [supported by robfig/cron](https://github.com/robfig/cron/#background---cron-spec-format), lamplighter can parse the format `@sunset $OFFSET` where `$OFFSET` is a duration string parseable by go's `time.ParseDuration` function.
 
 For example:
 ```json
