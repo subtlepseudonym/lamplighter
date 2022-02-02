@@ -77,48 +77,6 @@ func ConnectToDevice(label, host, mac string) (*Device, error) {
 	return device, nil
 }
 
-// GetHardwareVersion wraps the underlying method of the same name and adds retries.
-func (d *Device) GetHardwareVersion(ctx context.Context, conn net.Conn) error {
-	var err error
-	for i := 0; i < retryLimit; i++ {
-		// This tends to fail intermittently, so retry it a few times
-		err = d.Device.GetHardwareVersion(ctx, conn)
-		if err == nil || !errors.Is(err, context.DeadlineExceeded) {
-			break
-		}
-
-		// Be _mildly_ polite
-		time.Sleep(500 * time.Millisecond)
-	}
-
-	if err != nil {
-		return fmt.Errorf("%s: get hardware version: %w", d.Label, err)
-	}
-	return nil
-}
-
-// GetPower wraps the underlying method of the same name and adds retries.
-func (d *Device) GetPower(ctx context.Context, conn net.Conn) (lifxlan.Power, error) {
-	var power lifxlan.Power
-	var err error
-
-	for i := 0; i < retryLimit; i++ {
-		// This tends to fail intermittently, so retry it a few times
-		power, err = d.Device.GetPower(ctx, conn)
-		if err == nil || !errors.Is(err, context.DeadlineExceeded) {
-			break
-		}
-
-		// Be _mildly_ polite
-		time.Sleep(500 * time.Millisecond)
-	}
-
-	if err != nil {
-		return lifxlan.PowerOff, fmt.Errorf("%s: get power: %w", d.Label, err)
-	}
-	return power, nil
-}
-
 // Echo wraps the underlying method of the same name and adds retry logic
 func (d *Device) Echo(ctx context.Context, conn net.Conn) error {
 	var err error
