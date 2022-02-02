@@ -2,5 +2,5 @@ github.com/nathan-osman/go-sunrise v1.0.0 h1:mvjoVmXjmiHDSwKRA5t4T/1rNuHQDhodfQo
 github.com/nathan-osman/go-sunrise v1.0.0/go.mod h1:RcWqhT+5ShCZDev79GuWLayetpJp78RSjSWxiDowmlM=
 github.com/robfig/cron/v3 v3.0.1 h1:WdRxkvbJztn8LMz/QEvLN5sBU+xKpSqwwUO1Pjr4qDs=
 github.com/robfig/cron/v3 v3.0.1/go.mod h1:eQICP3HwyT7UooqI/z+Ov+PtYAWygg1TEWWzGIFLtro=
-go.yhsif.com/lifxlan v0.3.2-0.20220131062848-a9b233eafc4c h1:jHnSuEPFY9pDhfVLAe7Dsv+fm15cwtAjR0aibo2UOZ4=
-go.yhsif.com/lifxlan v0.3.2-0.20220131062848-a9b233eafc4c/go.mod h1:6KStBI+zrDsqESGLT2b7OJbKLpeCT5WIURxx+r0JtTM=
+go.yhsif.com/lifxlan v0.3.2 h1:6DyNopXVEOWXZNxlgCo19XyJATHmQEZZRti2ETdWDWs=
+go.yhsif.com/lifxlan v0.3.2/go.mod h1:6KStBI+zrDsqESGLT2b7OJbKLpeCT5WIURxx+r0JtTM=
