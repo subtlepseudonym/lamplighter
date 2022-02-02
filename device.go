@@ -121,7 +121,7 @@ func (d *Device) Transition(desired *lifxlan.Color, transition time.Duration) er
 		return fmt.Errorf("%s: get power: %w", d.Label, err)
 	}
 
-	// if power is off, reset bulb brightness to 0 and turn on
+	// If power is off, reset bulb brightness to 0 and turn on
 	if power == lifxlan.PowerOff {
 		color := *desired
 		color.Brightness = 0

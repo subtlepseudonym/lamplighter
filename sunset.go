@@ -19,7 +19,7 @@ type Location struct {
 // Next returns the time of next sunset, given the SunsetSchedule's
 // location value
 //
-// This implements robfic/cron.Schedule
+// This implements robfig/cron.Schedule
 func (s SunsetSchedule) Next(now time.Time) time.Time {
 	_, sunset := sunrise.SunriseSunset(
 		s.Location.Latitude,
