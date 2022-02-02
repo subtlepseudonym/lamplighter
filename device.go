@@ -51,7 +51,7 @@ func ConnectToDevice(label, host, mac string) (*Device, error) {
 	// The expectation is that ConnectToDevice is called once when
 	// lamplighter starts and any failed connections will be caught by
 	// the user at that time.
-	err = dev.Echo(ctx, conn)
+	err = dev.Echo(ctx, conn, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s: echo device: %w", label, err)
 	}
@@ -78,10 +78,10 @@ func ConnectToDevice(label, host, mac string) (*Device, error) {
 }
 
 // Echo wraps the underlying method of the same name and adds retry logic
-func (d *Device) Echo(ctx context.Context, conn net.Conn) error {
+func (d *Device) Echo(ctx context.Context, conn net.Conn, payload []byte) error {
 	var err error
 	for i := 0; i < defaultRetryLimit; i++ {
-		err = d.Device.Echo(ctx, conn)
+		err = d.Device.Echo(ctx, conn, payload)
 		if err == nil || !errors.Is(err, context.DeadlineExceeded) {
 			break
 		}
@@ -103,7 +103,7 @@ func (d *Device) Transition(desired *lifxlan.Color, transition time.Duration) er
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	err = d.Echo(ctx, conn)
+	err = d.Echo(ctx, conn, nil)
 	if err != nil {
 		return fmt.Errorf("%s: echo device: %w", d.Label, err)
 	}

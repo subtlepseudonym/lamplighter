@@ -5,7 +5,5 @@ go 1.17
 require (
 	github.com/nathan-osman/go-sunrise v1.0.0
 	github.com/robfig/cron/v3 v3.0.1
-	go.yhsif.com/lifxlan v0.3.0
+	go.yhsif.com/lifxlan v0.3.2-0.20220131062848-a9b233eafc4c
 )
-
-replace go.yhsif.com/lifxlan => github.com/subtlepseudonym/lifxlan v0.3.1-0.20220125041330-d1da639f4f90
