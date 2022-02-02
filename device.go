@@ -18,6 +18,7 @@ import (
 
 const (
 	defaultPowerTransition = 2 * time.Second
+	defaultRetryBackoff    = 250 * time.Millisecond
 	retryLimit             = 5
 )
 
@@ -45,6 +46,11 @@ func ConnectToDevice(label, host, mac string) (*Device, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
+	// This is lifxlan.Device.Echo, not lamplighter.Device.Echo
+	//
+	// The expectation is that ConnectToDevice is called once when
+	// lamplighter starts and any failed connections will be caught by
+	// the user at that time.
 	err = dev.Echo(ctx, conn)
 	if err != nil {
 		return nil, fmt.Errorf("%s: echo device: %w", label, err)
@@ -113,6 +119,22 @@ func (d *Device) GetPower(ctx context.Context, conn net.Conn) (lifxlan.Power, er
 	return power, nil
 }
 
+// Echo wraps the underlying method of the same name and adds retry logic
+func (d *Device) Echo(ctx context.Context, conn net.Conn) error {
+	var err error
+	for i := 0; i < retryLimit; i++ {
+		err = d.Device.Echo(ctx, conn)
+		if err == nil || !errors.Is(err, context.DeadlineExceeded) {
+			break
+		}
+
+		// Retry backoff
+		time.Sleep(time.Duration(i+1) * defaultRetryBackoff)
+	}
+
+	return err
+}
+
 func (d *Device) Transition(desired *lifxlan.Color, transition time.Duration) error {
 	conn, err := d.Dial()
 	if err != nil {
@@ -122,6 +144,11 @@ func (d *Device) Transition(desired *lifxlan.Color, transition time.Duration) er
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
+	err = d.Echo(ctx, conn)
+	if err != nil {
+		return fmt.Errorf("%s: echo device: %w", d.Label, err)
+	}
 
 	if desired.Brightness == 0 {
 		err = d.SetLightPower(ctx, conn, lifxlan.PowerOff, transition, true)
