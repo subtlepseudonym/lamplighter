@@ -19,7 +19,7 @@ import (
 const (
 	defaultPowerTransition = 2 * time.Second
 	defaultRetryBackoff    = 250 * time.Millisecond
-	retryLimit             = 5
+	defaultRetryLimit      = 5
 )
 
 type Device struct {
@@ -80,7 +80,7 @@ func ConnectToDevice(label, host, mac string) (*Device, error) {
 // Echo wraps the underlying method of the same name and adds retry logic
 func (d *Device) Echo(ctx context.Context, conn net.Conn) error {
 	var err error
-	for i := 0; i < retryLimit; i++ {
+	for i := 0; i < defaultRetryLimit; i++ {
 		err = d.Device.Echo(ctx, conn)
 		if err == nil || !errors.Is(err, context.DeadlineExceeded) {
 			break
