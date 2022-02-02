@@ -14,6 +14,12 @@ type Config struct {
 	Location lamplighter.Location `json:"location"`
 }
 
+// Job defines when to run, on which device, what the desired final
+// state is, and how long to take getting there.
+//
+// Color state is defined using Hue, Saturation, and Brightness. This
+// is referred to as HSB (or HSL) color.
+// https://en.wikipedia.org/wiki/HSL_and_HSV
 type Job struct {
 	Schedule string `json:"schedule"`
 	Device   string `json:"device"`
