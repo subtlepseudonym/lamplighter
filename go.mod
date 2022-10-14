@@ -1,6 +1,6 @@
 module github.com/subtlepseudonym/lamplighter
 
-go 1.18
+go 1.19
 
 require (
 	github.com/nathan-osman/go-sunrise v1.0.0
