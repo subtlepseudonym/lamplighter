@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"math"
@@ -24,6 +25,8 @@ const (
 	lifxPort     = 56700
 	sunsetPrefix = "@sunset"
 )
+
+var safe bool // safe startup
 
 type Job struct {
 	Device     *lamplighter.Device
@@ -88,6 +91,9 @@ func entryHandler(lightCron *cron.Cron) http.HandlerFunc {
 }
 
 func main() {
+	flag.BoolVar(&safe, "safe", false, "Ignore bulbs that don't connect on start up")
+	flag.Parse()
+
 	// manually set local timezone for docker container
 	if tz := os.Getenv("TZ"); tz != "" {
 		loc, err := time.LoadLocation(tz)
@@ -123,8 +129,11 @@ func main() {
 	lightCron := cron.New()
 	for _, job := range cfg.Jobs {
 		if _, ok := devices[job.Device]; !ok {
-			log.Printf("ERR: device %q not registered, skipping job", job.Device)
-			continue
+			if safe {
+				log.Printf("ERR: device %q not registered, skipping job", job.Device)
+				continue
+			}
+			os.Exit(1)
 		}
 
 		var schedule cron.Schedule
