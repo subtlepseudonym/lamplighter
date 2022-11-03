@@ -90,6 +90,10 @@ func entryHandler(lightCron *cron.Cron) http.HandlerFunc {
 	})
 }
 
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+}
+
 func main() {
 	flag.BoolVar(&safe, "safe", false, "Ignore bulbs that don't connect on start up")
 	flag.Parse()
@@ -198,6 +202,7 @@ func main() {
 	}
 
 	mux.HandleFunc("/entries", entryHandler(lightCron))
+	mux.HandleFunc("/health", healthHandler)
 
 	srv := http.Server{
 		Addr:    listenAddr,
