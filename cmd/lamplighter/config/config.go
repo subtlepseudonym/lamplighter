@@ -8,6 +8,18 @@ import (
 	"github.com/subtlepseudonym/lamplighter"
 )
 
+type DeviceType string
+
+const (
+	Lifx DeviceType = "lifx"
+)
+
+type Device struct {
+	Type DeviceType `json:"type"`
+	IP   string     `json:"ip"`
+	MAC  string     `json:"mac"`
+}
+
 type Config struct {
 	Devices  map[string]Device    `json:"devices"`
 	Jobs     []Job                `json:"jobs"`
@@ -30,11 +42,6 @@ type Job struct {
 	Kelvin     int `json:"kelvin"`     // 1500-9000
 
 	Transition string `json:"transition"`
-}
-
-type Device struct {
-	IP  string `json:"ip"`
-	MAC string `json:"mac"`
 }
 
 func Open(filename string) (*Config, error) {

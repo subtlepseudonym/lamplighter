@@ -1,4 +1,4 @@
-package lamplighter
+package device
 
 import (
 	"context"
@@ -16,21 +16,15 @@ import (
 	"go.yhsif.com/lifxlan/light"
 )
 
-const (
-	defaultPowerTransition = 2 * time.Second
-	defaultRetryBackoff    = 250 * time.Millisecond
-	defaultRetryLimit      = 5
-)
-
-type Device struct {
+type LifxBulb struct {
 	light.Device
-	Label string // prevent need to contact device for logging
+	label string // prevent need to contact device for logging
 }
 
-// ConnectToDevice takes a label (for logging), a host in ip:port
+// ConnectLifx takes a label (for logging), a host in ip:port
 // format and a mac address to locate a device on the network, connect
 // to it, and retrieve the label and hardware version
-func ConnectToDevice(label, host, mac string) (*Device, error) {
+func ConnectLifx(label, host, mac string) (Device, error) {
 	target, err := lifxlan.ParseTarget(mac)
 	if err != nil {
 		return nil, fmt.Errorf("%s: parse mac address: %w", label, err)
@@ -48,7 +42,7 @@ func ConnectToDevice(label, host, mac string) (*Device, error) {
 
 	// This is lifxlan.Device.Echo, not lamplighter.Device.Echo
 	//
-	// The expectation is that ConnectToDevice is called once when
+	// The expectation is that ConnectLifx is called once when
 	// lamplighter starts and any failed connections will be caught by
 	// the user at that time.
 	err = dev.Echo(ctx, conn, nil)
@@ -61,7 +55,7 @@ func ConnectToDevice(label, host, mac string) (*Device, error) {
 		return nil, fmt.Errorf("%s: device is not a light: %w", label, err)
 	}
 
-	device := &Device{
+	device := &LifxBulb{
 		Device: bulb,
 	}
 
@@ -71,14 +65,14 @@ func ConnectToDevice(label, host, mac string) (*Device, error) {
 	}
 
 	if device.Device.Label().String() != lifxlan.EmptyLabel {
-		device.Label = strings.ToLower(device.Device.Label().String())
+		device.label = strings.ToLower(device.Device.Label().String())
 	}
 
 	return device, nil
 }
 
-// Echo wraps the underlying method of the same name and adds retry logic
-func (d *Device) Echo(ctx context.Context, conn net.Conn, payload []byte) error {
+// echo wraps the underlying method of the same name and adds retry logic
+func (d *LifxBulb) echo(ctx context.Context, conn net.Conn, payload []byte) error {
 	var err error
 	for i := 0; i < defaultRetryLimit; i++ {
 		err = d.Device.Echo(ctx, conn, payload)
@@ -93,62 +87,70 @@ func (d *Device) Echo(ctx context.Context, conn net.Conn, payload []byte) error 
 	return err
 }
 
-func (d *Device) Transition(desired *lifxlan.Color, transition time.Duration) error {
+func (d *LifxBulb) Transition(color *Color, transition time.Duration) error {
 	conn, err := d.Dial()
 	if err != nil {
-		return fmt.Errorf("%s: dial: %w", d.Label, err)
+		return fmt.Errorf("%s: dial: %w", d.label, err)
 	}
 	defer conn.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	err = d.Echo(ctx, conn, nil)
+	err = d.echo(ctx, conn, nil)
 	if err != nil {
-		return fmt.Errorf("%s: echo device: %w", d.Label, err)
+		return fmt.Errorf("%s: echo device: %w", d.label, err)
 	}
 
-	if desired.Brightness == 0 {
+	if color.Brightness == 0 {
 		err = d.SetLightPower(ctx, conn, lifxlan.PowerOff, transition, true)
 		if err != nil {
-			return fmt.Errorf("%s: set light power: %w", d.Label, err)
+			return fmt.Errorf("%s: set light power: %w", d.label, err)
 		}
 		return nil
 	}
 
 	power, err := d.GetPower(ctx, conn)
 	if err != nil {
-		return fmt.Errorf("%s: get power: %w", d.Label, err)
+		return fmt.Errorf("%s: get power: %w", d.label, err)
 	}
+
+	lifxColor := &lifxlan.Color{
+		Hue:        color.Hue,
+		Saturation: color.Saturation,
+		Brightness: color.Brightness,
+		Kelvin:     color.Kelvin,
+	}
+	*lifxColor = d.Device.SanitizeColor(*lifxColor)
 
 	// If power is off, reset bulb brightness to 0 and turn on
 	if power == lifxlan.PowerOff {
-		color := *desired
-		color.Brightness = 0
+		clr := *lifxColor
+		clr.Brightness = 0
 
-		err = d.SetColor(ctx, conn, &color, time.Millisecond, true)
+		err = d.SetColor(ctx, conn, &clr, time.Millisecond, true)
 		if err != nil {
-			return fmt.Errorf("%s: reset color: %w", d.Label, err)
+			return fmt.Errorf("%s: reset color: %w", d.label, err)
 		}
 
 		err = d.SetPower(ctx, conn, lifxlan.PowerOn, true)
 		if err != nil {
-			return fmt.Errorf("%s: set power: %w", d.Label, err)
+			return fmt.Errorf("%s: set power: %w", d.label, err)
 		}
 	}
 
-	err = d.SetColor(ctx, conn, desired, transition, true)
+	err = d.SetColor(ctx, conn, lifxColor, transition, true)
 	if err != nil {
-		return fmt.Errorf("%s: set color: %w", d.Label, err)
+		return fmt.Errorf("%s: set color: %w", d.label, err)
 	}
 
 	return nil
 }
 
-func (d *Device) StatusHandler(w http.ResponseWriter, r *http.Request) {
+func (d *LifxBulb) StatusHandler(w http.ResponseWriter, r *http.Request) {
 	conn, err := d.Dial()
 	if err != nil {
-		log.Printf("ERR: %s: dial: %s", d.Label, err)
+		log.Printf("ERR: %s: dial: %s", d.label, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(`{"error": "unable to connect to device"}`))
 		return
@@ -160,7 +162,7 @@ func (d *Device) StatusHandler(w http.ResponseWriter, r *http.Request) {
 
 	color, err := d.GetColor(ctx, conn)
 	if err != nil {
-		log.Printf("ERR: %s: get color: %s", d.Label, err)
+		log.Printf("ERR: %s: get color: %s", d.label, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(`{"error": "unable to get device brightness state"}`))
 		return
@@ -176,7 +178,7 @@ func (d *Device) StatusHandler(w http.ResponseWriter, r *http.Request) {
 	)
 }
 
-func (d *Device) PowerHandler(w http.ResponseWriter, r *http.Request) {
+func (d *LifxBulb) PowerHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 
 	var hue uint16
@@ -184,7 +186,7 @@ func (d *Device) PowerHandler(w http.ResponseWriter, r *http.Request) {
 		param := r.FormValue("hue")
 		p, err := strconv.ParseFloat(param, 64)
 		if err != nil {
-			log.Printf("ERR: %s: parse hue param %q: %s", d.Label, param, err)
+			log.Printf("ERR: %s: parse hue param %q: %s", d.label, param, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte(`{"error": "unable to parse hue parameter"}`))
 			return
@@ -204,7 +206,7 @@ func (d *Device) PowerHandler(w http.ResponseWriter, r *http.Request) {
 		param := r.FormValue("saturation")
 		p, err := strconv.ParseFloat(param, 64)
 		if err != nil {
-			log.Printf("ERR: %s: parse saturation param %q: %s", d.Label, param, err)
+			log.Printf("ERR: %s: parse saturation param %q: %s", d.label, param, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte(`{"error": "unable to parse saturation parameter"}`))
 			return
@@ -224,7 +226,7 @@ func (d *Device) PowerHandler(w http.ResponseWriter, r *http.Request) {
 		param := r.FormValue("brightness")
 		p, err := strconv.ParseFloat(param, 64)
 		if err != nil {
-			log.Printf("ERR: %s: parse brightness param %q: %s", d.Label, param, err)
+			log.Printf("ERR: %s: parse brightness param %q: %s", d.label, param, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte(`{"error": "unable to parse brightness parameter"}`))
 			return
@@ -247,7 +249,7 @@ func (d *Device) PowerHandler(w http.ResponseWriter, r *http.Request) {
 		param := r.FormValue("kelvin")
 		p, err := strconv.Atoi(param)
 		if err != nil {
-			log.Printf("ERR: %s: parse kelvin param %q: %s", d.Label, param, err)
+			log.Printf("ERR: %s: parse kelvin param %q: %s", d.label, param, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte(`{"error": "unable to parse kelvin parameter"}`))
 			return
@@ -272,7 +274,7 @@ func (d *Device) PowerHandler(w http.ResponseWriter, r *http.Request) {
 
 		parsed, err := time.ParseDuration(param)
 		if err != nil {
-			log.Printf("ERR: %s: parse transition param %q: %s", d.Label, param, err)
+			log.Printf("ERR: %s: parse transition param %q: %s", d.label, param, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte(`{"error": "unable to parse transition parameter"}`))
 			return
@@ -280,7 +282,7 @@ func (d *Device) PowerHandler(w http.ResponseWriter, r *http.Request) {
 		transition = parsed
 	}
 
-	color := &lifxlan.Color{
+	color := &Color{
 		Hue:        hue,
 		Saturation: saturation,
 		Brightness: brightness,
@@ -304,4 +306,12 @@ func (d *Device) PowerHandler(w http.ResponseWriter, r *http.Request) {
 		color.Kelvin,
 		transition,
 	)
+}
+
+func (d *LifxBulb) Label() string {
+	return d.label
+}
+
+func (d *LifxBulb) String() string {
+	return d.Device.HardwareVersion().String()
 }

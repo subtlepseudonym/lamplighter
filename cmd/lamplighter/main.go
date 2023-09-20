@@ -13,9 +13,9 @@ import (
 
 	"github.com/subtlepseudonym/lamplighter"
 	"github.com/subtlepseudonym/lamplighter/cmd/lamplighter/config"
+	"github.com/subtlepseudonym/lamplighter/device"
 
 	"github.com/robfig/cron/v3"
-	"go.yhsif.com/lifxlan"
 )
 
 const (
@@ -29,15 +29,15 @@ const (
 var safe bool // safe startup
 
 type Job struct {
-	Device     *lamplighter.Device
-	Color      *lifxlan.Color
+	Device     device.Device
+	Color      *device.Color
 	Transition time.Duration
 }
 
 func (j Job) Run() {
 	log.Printf(
 		`{"device": %q, "hue": %.2f, "saturation": %.2f, "brightness": %.2f, "kelvin": %d, "transition": %q}`,
-		j.Device.Label,
+		j.Device.Label(),
 		float64(j.Color.Hue)*360.0/0x10000,
 		float64(j.Color.Saturation)/math.MaxUint16*100,
 		float64(j.Color.Brightness)/math.MaxUint16*100,
@@ -73,7 +73,7 @@ func entryHandler(lightCron *cron.Cron) http.HandlerFunc {
 
 			entry := Entry{
 				Next:       entry.Schedule.Next(time.Now()).Local().Format(time.RFC3339),
-				Device:     job.Device.Label,
+				Device:     job.Device.Label(),
 				Hue:        float64(job.Color.Hue) * 360.0 / 0x10000,
 				Saturation: float64(job.Color.Saturation) / math.MaxUint16 * 100,
 				Brightness: float64(job.Color.Brightness) / math.MaxUint16 * 100,
@@ -117,16 +117,23 @@ func main() {
 		log.Fatalf("ERR: invalid config: %s", err)
 	}
 
-	devices := make(map[string]*lamplighter.Device)
+	devices := make(map[string]device.Device)
 	for label, dev := range cfg.Devices {
-		host := fmt.Sprintf("%s:%d", dev.IP, lifxPort)
-		device, err := lamplighter.ConnectToDevice(label, host, dev.MAC)
-		if err != nil {
-			log.Printf("ERR: scan device: %s", err)
+		switch dev.Type {
+		case config.Lifx:
+			host := fmt.Sprintf("%s:%d", dev.IP, lifxPort)
+			d, err := device.ConnectLifx(label, host, dev.MAC)
+			if err != nil {
+				log.Printf("ERR: connect to device: %s", err)
+				continue
+			}
+			devices[label] = d
+		default:
+			log.Printf("ERR: unrecognized device type: %s", dev.Type)
 			continue
 		}
-		devices[label] = device
-		log.Printf("registered device: %q %s", label, device.HardwareVersion())
+
+		log.Printf("registered device: %q %s", label, devices[label])
 	}
 
 	now := time.Now() // used for logging cron entries
@@ -168,13 +175,12 @@ func main() {
 
 		// conversion formulas are defined by lifx LAN documentation
 		// https://lan.developer.lifx.com/docs/representing-color-with-hsbk
-		color := &lifxlan.Color{
+		color := &device.Color{
 			Hue:        uint16((job.Hue * 0x10000 / 360.0) % 0x10000),
 			Saturation: uint16(job.Saturation * math.MaxUint16 / 100.0),
 			Brightness: uint16(job.Brightness * math.MaxUint16 / 100.0),
 			Kelvin:     uint16(job.Kelvin),
 		}
-		color.Sanitize()
 
 		transition, err := time.ParseDuration(job.Transition)
 		if err != nil {
