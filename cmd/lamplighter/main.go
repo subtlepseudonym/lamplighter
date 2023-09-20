@@ -128,6 +128,13 @@ func main() {
 				continue
 			}
 			devices[label] = d
+		case config.S31:
+			d, err := device.ConnectS31(label, dev.IP, dev.MAC)
+			if err != nil {
+				log.Printf("ERR: connect to device: %s", err)
+				continue
+			}
+			devices[label] = d
 		default:
 			log.Printf("ERR: unrecognized device type: %s", dev.Type)
 			continue

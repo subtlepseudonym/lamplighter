@@ -12,6 +12,7 @@ type DeviceType string
 
 const (
 	Lifx DeviceType = "lifx"
+	S31  DeviceType = "s31"
 )
 
 type Device struct {
