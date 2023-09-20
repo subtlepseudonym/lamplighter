@@ -11,7 +11,7 @@ import (
 
 type Device struct {
 	Type device.Type `json:"type"`
-	IP   string      `json:"ip"`
+	Host string      `json:"host"`
 	MAC  string      `json:"mac"`
 }
 

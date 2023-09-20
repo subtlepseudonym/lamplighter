@@ -118,7 +118,7 @@ func main() {
 
 	devices := make(map[string]device.Device)
 	for label, dev := range cfg.Devices {
-		d, err := device.Connect(dev.Type, label, dev.IP, dev.MAC)
+		d, err := device.Connect(dev.Type, label, dev.Host, dev.MAC)
 		if err != nil {
 			log.Printf("ERR: connect to device: %s", err)
 			continue
