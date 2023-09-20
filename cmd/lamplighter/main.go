@@ -22,7 +22,6 @@ const (
 	configFile = "config/lamp.cfg"
 
 	listenAddr   = ":9000"
-	lifxPort     = 56700
 	sunsetPrefix = "@sunset"
 )
 
@@ -119,27 +118,12 @@ func main() {
 
 	devices := make(map[string]device.Device)
 	for label, dev := range cfg.Devices {
-		switch dev.Type {
-		case config.Lifx:
-			host := fmt.Sprintf("%s:%d", dev.IP, lifxPort)
-			d, err := device.ConnectLifx(label, host, dev.MAC)
-			if err != nil {
-				log.Printf("ERR: connect to device: %s", err)
-				continue
-			}
-			devices[label] = d
-		case config.S31:
-			d, err := device.ConnectS31(label, dev.IP, dev.MAC)
-			if err != nil {
-				log.Printf("ERR: connect to device: %s", err)
-				continue
-			}
-			devices[label] = d
-		default:
-			log.Printf("ERR: unrecognized device type: %s", dev.Type)
+		d, err := device.Connect(dev.Type, label, dev.IP, dev.MAC)
+		if err != nil {
+			log.Printf("ERR: connect to device: %s", err)
 			continue
 		}
-
+		devices[label] = d
 		log.Printf("registered device: %q %s", label, devices[label])
 	}
 
@@ -202,7 +186,7 @@ func main() {
 		}
 		lightCron.Schedule(schedule, j)
 
-		log.Printf("job: %s: %s", schedule.Next(now).Local().Format(time.RFC3339), j.Device.Label)
+		log.Printf("job: %s: %s", schedule.Next(now).Local().Format(time.RFC3339), j.Device.Label())
 	}
 
 	mux := http.NewServeMux()

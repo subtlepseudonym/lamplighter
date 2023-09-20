@@ -6,19 +6,13 @@ import (
 	"os"
 
 	"github.com/subtlepseudonym/lamplighter"
-)
-
-type DeviceType string
-
-const (
-	Lifx DeviceType = "lifx"
-	S31  DeviceType = "s31"
+	"github.com/subtlepseudonym/lamplighter/device"
 )
 
 type Device struct {
-	Type DeviceType `json:"type"`
-	IP   string     `json:"ip"`
-	MAC  string     `json:"mac"`
+	Type device.Type `json:"type"`
+	IP   string      `json:"ip"`
+	MAC  string      `json:"mac"`
 }
 
 type Config struct {
