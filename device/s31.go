@@ -36,7 +36,7 @@ func ConnectS31(label, addr, mac string) (Device, error) {
 		label:   label,
 	}
 
-	query := fmt.Sprintf("http://%s/cm?cmnd=Status%202", s31.Address)
+	query := fmt.Sprintf("http://%s/cm?cmnd=Status%%202", s31.Address)
 	res, err := http.Get(query)
 	if err != nil {
 		return nil, fmt.Errorf("%s: query status: %w", s31.label, err)
@@ -60,16 +60,10 @@ func (s *S31) Transition(color *Color, transition time.Duration) error {
 		power = "On"
 	}
 
-	query := fmt.Sprintf("http://%s/cm?cmnd=Power%20%s", s.Address, power)
-	res, err := http.Get(query)
+	query := fmt.Sprintf("http://%s/cm?cmnd=Power%%20%s", s.Address, power)
+	_, err := http.Get(query)
 	if err != nil {
 		return fmt.Errorf("%s: set power state: %w", s.label, err)
-	}
-
-	var state TasmotaPowerState
-	err = json.NewDecoder(res.Body).Decode(&state)
-	if err != nil {
-		return fmt.Errorf("%s: decode power state: %w", s.label, err)
 	}
 
 	return nil
@@ -140,7 +134,7 @@ func (s *S31) PowerHandler(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Fprintf(
 		w,
-		`{"brightness": %q}`,
+		`{"brightness": %.2f}`,
 		float64(color.Brightness)/math.MaxUint16*100,
 	)
 }
@@ -150,5 +144,5 @@ func (s *S31) Label() string {
 }
 
 func (s *S31) String() string {
-	return fmt.Sprintf("Sonoff S31 %s", s.Label)
+	return fmt.Sprintf("Sonoff S31 %s %s", s.Hardware, s.Firmware)
 }
