@@ -94,7 +94,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	flag.BoolVar(&safe, "safe", false, "Ignore bulbs that don't connect on start up")
+	flag.BoolVar(&safe, "safe", false, "Ignore bulbs that don't connect on start up. Can also be set by using the SAFE environment variable")
 	flag.Parse()
 
 	// manually set local timezone for docker container
@@ -104,6 +104,10 @@ func main() {
 			log.Fatalf("ERR: load tz location: %s", err)
 		}
 		time.Local = loc
+	}
+
+	if safeEnv := os.Getenv("SAFE"); safeEnv != "" {
+		safe = true
 	}
 
 	cfg, err := config.Open(configFile)
