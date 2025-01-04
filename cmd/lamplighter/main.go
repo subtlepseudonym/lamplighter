@@ -19,13 +19,16 @@ import (
 )
 
 const (
-	configFile = "config/lamp.cfg"
+	DefaultConfigPath = "config/lamp.cfg"
 
 	listenAddr   = ":9000"
 	sunsetPrefix = "@sunset"
 )
 
-var safe bool // safe startup
+var (
+	safe       bool // safe startup
+	configPath string
+)
 
 type Job struct {
 	Device     device.Device
@@ -95,6 +98,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	flag.BoolVar(&safe, "safe", false, "Ignore bulbs that don't connect on start up. Can also be set by using the SAFE environment variable")
+	flag.StringVar(&configPath, "config", DefaultConfigPath, "Path to config file")
 	flag.Parse()
 
 	// manually set local timezone for docker container
@@ -110,7 +114,7 @@ func main() {
 		safe = true
 	}
 
-	cfg, err := config.Open(configFile)
+	cfg, err := config.Open(configPath)
 	if err != nil {
 		log.Fatalf("ERR: read config file failed: %s", err)
 	}
