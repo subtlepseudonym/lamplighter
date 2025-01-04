@@ -109,6 +109,7 @@ func (s *S31) PowerHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// FIXME: this logic is unnecessary for relays (which are boolean)
 		if p < 0 {
 			p = 0
 		} else if p > 100 {

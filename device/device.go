@@ -16,8 +16,9 @@ const (
 type Type string
 
 const (
-	TypeLifx Type = "lifx"
-	TypeS31  Type = "s31"
+	TypeLifx   Type = "lifx"
+	TypeS31    Type = "s31"
+	TypeShelly Type = "shelly"
 )
 
 type Color struct {
@@ -42,6 +43,8 @@ func Connect(t Type, label, host, mac string) (Device, error) {
 		return ConnectLifx(label, addr, mac)
 	case TypeS31:
 		return ConnectS31(label, host, mac)
+	case TypeShelly:
+		return ConnectShelly(label, host, mac)
 	default:
 		return nil, fmt.Errorf("unknown device type: %s", t)
 	}
