@@ -121,7 +121,7 @@ func (s *Shelly) Transition(color *Color, transition time.Duration) error {
 }
 
 func (s *Shelly) StatusHandler(w http.ResponseWriter, r *http.Request) {
-	query := fmt.Sprintf("http://%s/rpc/Switch.GetStatus?id=0")
+	query := fmt.Sprintf("http://%s/rpc/Switch.GetStatus?id=0", s.Address)
 	res, err := http.Get(query)
 	if err != nil {
 		log.Printf("ERR: %s: query status: %w", s.label, err)
