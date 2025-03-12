@@ -1,6 +1,6 @@
 *.token
 *.loc
+*.cfg
 secrets/
-config/
 lamplighter
 !lamplighter/
