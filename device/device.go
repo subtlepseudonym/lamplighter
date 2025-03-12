@@ -46,7 +46,7 @@ func Connect(label string, device config.Device) (Device, error) {
 	case TypeS31:
 		return ConnectS31(label, device.Host, device.MAC)
 	case TypeShelly:
-		return ConnectShelly(label, device.Host, device.MAC)
+		return ConnectShelly(label, device.Host, device.MAC, device.Index)
 	default:
 		return nil, fmt.Errorf("unknown device type: %s", device.Type)
 	}

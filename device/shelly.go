@@ -17,6 +17,7 @@ type Shelly struct {
 	Firmware string
 	Hardware string
 	label    string
+	index    int // index of attached port on device
 }
 
 type ShellyConfigResponse struct {
@@ -69,11 +70,12 @@ type ShellySwitchStatusResponse struct {
 	} `json:"temperature"`
 }
 
-func ConnectShelly(label, addr, mac string) (Device, error) {
+func ConnectShelly(label, addr, mac string, index int) (Device, error) {
 	shelly := &Shelly{
 		Address: addr,
 		MAC:     mac,
 		label:   label,
+		index:   index,
 	}
 
 	query := fmt.Sprintf("http://%s/rpc/Sys.GetConfig?id=0", shelly.Address)
@@ -111,7 +113,7 @@ func (s *Shelly) Transition(color *Color, transition time.Duration) error {
 		on = true
 	}
 
-	query := fmt.Sprintf("http://%s/rpc/Switch.Set?id=0&on=%t", s.Address, on)
+	query := fmt.Sprintf("http://%s/rpc/Switch.Set?id=%d&on=%t", s.Address, s.index, on)
 	_, err := http.Get(query)
 	if err != nil {
 		return fmt.Errorf("%s: set power state: %w", s.label, err)
