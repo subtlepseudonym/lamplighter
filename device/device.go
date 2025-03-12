@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/subtlepseudonym/lamplighter/config"
 )
 
 const (
@@ -36,16 +38,16 @@ type Device interface {
 	String() string
 }
 
-func Connect(t Type, label, host, mac string) (Device, error) {
-	switch t {
+func Connect(label string, device config.Device) (Device, error) {
+	switch Type(device.Type) {
 	case TypeLifx:
-		addr := fmt.Sprintf("%s:%d", host, defaultLifxPort)
-		return ConnectLifx(label, addr, mac)
+		addr := fmt.Sprintf("%s:%d", device.Host, defaultLifxPort)
+		return ConnectLifx(label, addr, device.MAC)
 	case TypeS31:
-		return ConnectS31(label, host, mac)
+		return ConnectS31(label, device.Host, device.MAC)
 	case TypeShelly:
-		return ConnectShelly(label, host, mac)
+		return ConnectShelly(label, device.Host, device.MAC)
 	default:
-		return nil, fmt.Errorf("unknown device type: %s", t)
+		return nil, fmt.Errorf("unknown device type: %s", device.Type)
 	}
 }

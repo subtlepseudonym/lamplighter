@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/subtlepseudonym/lamplighter"
-	"github.com/subtlepseudonym/lamplighter/cmd/lamplighter/config"
+	"github.com/subtlepseudonym/lamplighter/config"
 	"github.com/subtlepseudonym/lamplighter/device"
 
 	"github.com/robfig/cron/v3"
@@ -126,7 +126,7 @@ func main() {
 
 	devices := make(map[string]device.Device)
 	for label, dev := range cfg.Devices {
-		d, err := device.Connect(dev.Type, label, dev.Host, dev.MAC)
+		d, err := device.Connect(label, dev)
 		if err != nil {
 			log.Printf("ERR: connect to device: %s", err)
 			continue

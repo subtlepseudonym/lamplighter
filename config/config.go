@@ -6,13 +6,13 @@ import (
 	"os"
 
 	"github.com/subtlepseudonym/lamplighter"
-	"github.com/subtlepseudonym/lamplighter/device"
 )
 
 type Device struct {
-	Type device.Type `json:"type"`
-	Host string      `json:"host"`
-	MAC  string      `json:"mac"`
+	Type  string `json:"type"`
+	Host  string `json:"host"`
+	MAC   string `json:"mac"`
+	Index int    `json:"index,omitempty"`
 }
 
 type Config struct {
