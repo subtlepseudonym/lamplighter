@@ -53,6 +53,12 @@ func (j Job) Run() {
 	}
 }
 
+type DeviceInfo struct {
+	Type   string `json:"type"`
+	Device string `json:"device"`
+	MAC    string `json:"mac"`
+}
+
 type Entry struct {
 	Next       string  `json:"next"`
 	Device     string  `json:"device"`
@@ -61,6 +67,26 @@ type Entry struct {
 	Brightness float64 `json:"brightness"`
 	Kelvin     uint16  `json:"kelvin"`
 	Transition string  `json:"transition"`
+}
+
+func deviceHandler(configured map[string]config.Device, registered map[string]device.Device) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		info := make(map[string]DeviceInfo)
+		for label, device := range registered {
+			cfgDevice := configured[label]
+			info[label] = DeviceInfo{
+				Type:   cfgDevice.Type,
+				Device: device.String(),
+				MAC:    cfgDevice.MAC,
+			}
+		}
+
+		b, err := json.Marshal(info)
+		if err != nil {
+			log.Printf("ERR: encode device mapping")
+		}
+		w.Write(b)
+	})
 }
 
 func entryHandler(lightCron *cron.Cron) http.HandlerFunc {
@@ -206,6 +232,7 @@ func main() {
 		mux.HandleFunc(status, device.StatusHandler)
 	}
 
+	mux.HandleFunc("/devices", deviceHandler(cfg.Devices, devices))
 	mux.HandleFunc("/entries", entryHandler(lightCron))
 	mux.HandleFunc("/health", healthHandler)
 
