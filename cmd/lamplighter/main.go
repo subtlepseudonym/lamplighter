@@ -71,6 +71,9 @@ type Entry struct {
 
 func deviceHandler(configured map[string]config.Device, registered map[string]device.Device) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		headers := w.Header()
+		headers.Add("Access-Control-Allow-Origin", "*")
+
 		info := make(map[string]DeviceInfo)
 		for label, device := range registered {
 			cfgDevice := configured[label]
