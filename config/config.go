@@ -9,10 +9,10 @@ import (
 )
 
 type Device struct {
-	Type  string `json:"type"`
-	Host  string `json:"host"`
-	MAC   string `json:"mac"`
-	Index int    `json:"index,omitempty"`
+	Type   string            `json:"type"`
+	Host   string            `json:"host"`
+	MAC    string            `json:"mac"`
+	Config map[string]string `json:"config,omitempty"`
 }
 
 type Config struct {
