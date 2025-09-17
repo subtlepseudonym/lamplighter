@@ -228,10 +228,10 @@ func main() {
 
 	mux := http.NewServeMux()
 	for label, device := range devices {
-		dev := fmt.Sprintf("/%s", label)
+		dev := fmt.Sprintf("/device/%s", label)
 		mux.HandleFunc(dev, device.PowerHandler)
 
-		status := fmt.Sprintf("/%s/status", label)
+		status := fmt.Sprintf("/device/%s/status", label)
 		mux.HandleFunc(status, device.StatusHandler)
 	}
 
