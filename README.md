@@ -35,6 +35,7 @@ For example:
 	},
 	"devices": {
 		"lamp": {
+			"type": "lifx",
 			"ip": "1.1.1.1",
 			"mac": "00:00:00:FF:FF:FF"
 		}
