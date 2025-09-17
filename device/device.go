@@ -3,7 +3,6 @@ package device
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/subtlepseudonym/lamplighter/config"
@@ -47,17 +46,7 @@ func Connect(label string, device config.Device) (Device, error) {
 	case TypeS31:
 		return ConnectS31(label, device.Host, device.MAC)
 	case TypeShelly:
-		var index int
-		idx, ok := device.Config["index"]
-		if ok {
-			var err error
-			index, err = strconv.Atoi(idx)
-			if err != nil {
-				return nil, fmt.Errorf("unable to parse shelly device index: %q", idx)
-			}
-		}
-
-		return ConnectShelly(label, device.Host, device.MAC, index)
+		return ConnectShelly(label, device.Host, device.MAC, device.Config)
 	default:
 		return nil, fmt.Errorf("unknown device type: %s", device.Type)
 	}

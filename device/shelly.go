@@ -11,6 +11,31 @@ import (
 	"time"
 )
 
+type ShellyDeviceConfig struct {
+	Index int
+}
+
+func parseDeviceConfig(config map[string]interface{}) (*ShellyDeviceConfig, error) {
+	val, ok := config["index"]
+	if !ok {
+		return &ShellyDeviceConfig{}, nil
+	}
+
+	var index int
+	switch idx := val.(type) {
+	case int:
+		index = idx
+	case float64:
+		index = int(idx)
+	default:
+		return nil, fmt.Errorf("parse index value: %v (%T)", val, val)
+	}
+
+	return &ShellyDeviceConfig{
+		Index: int(index),
+	}, nil
+}
+
 type Shelly struct {
 	Address  string
 	MAC      string
@@ -70,12 +95,17 @@ type ShellySwitchStatusResponse struct {
 	} `json:"temperature"`
 }
 
-func ConnectShelly(label, addr, mac string, index int) (Device, error) {
+func ConnectShelly(label, addr, mac string, deviceConfig map[string]interface{}) (Device, error) {
+	cfg, err := parseDeviceConfig(deviceConfig)
+	if err != nil {
+		return nil, fmt.Errorf("%s: parse device config: %w", label, err)
+	}
+
 	shelly := &Shelly{
 		Address: addr,
 		MAC:     mac,
 		label:   label,
-		index:   index,
+		index:   cfg.Index,
 	}
 
 	query := fmt.Sprintf("http://%s/rpc/Sys.GetConfig?id=0", shelly.Address)
