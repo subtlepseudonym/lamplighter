@@ -8,17 +8,21 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
 type ShellyDeviceConfig struct {
 	Index int
+	all   bool // control all outputs
 }
 
 func parseDeviceConfig(config map[string]interface{}) (*ShellyDeviceConfig, error) {
 	val, ok := config["index"]
 	if !ok {
-		return &ShellyDeviceConfig{}, nil
+		return &ShellyDeviceConfig{
+			all: true,
+		}, nil
 	}
 
 	var index int
@@ -42,7 +46,7 @@ type Shelly struct {
 	Firmware string
 	Hardware string
 	label    string
-	index    int // index of attached port on device
+	indexes  []int // indexes of attached ports on device
 }
 
 type ShellyDeviceInfo struct {
@@ -54,6 +58,19 @@ type ShellyDeviceInfo struct {
 	Version    string `json:"ver"`
 	App        string `json:"app"`
 	Profile    string `json:"profile"`
+}
+
+type ShellyGetComponentsResponse struct {
+	Components     []ShellyComponent `json:"components"`
+	ConfigRevision int               `json:"cfg_rev"`
+	Offset         int               `json:"offset"` // index of first component in result
+	Total          int               `json:"total"`  // total number of components
+}
+
+type ShellyComponent struct {
+	Key    string                 `json:"key"`
+	Status map[string]interface{} `json:"status"`
+	Config map[string]interface{} `json:"config"`
 }
 
 type ShellyConfigResponse struct {
@@ -90,10 +107,33 @@ func ConnectShelly(label, addr, mac string, deviceConfig map[string]interface{})
 		Address: addr,
 		MAC:     mac,
 		label:   label,
-		index:   cfg.Index,
 	}
 
+	if !cfg.all {
+		shelly.indexes = []int{cfg.Index}
+	} else {
+		query := fmt.Sprintf("http://%s/rpc/Shelly.GetComponents", shelly.Address)
+		res, err := http.Get(query)
+		if err != nil {
+			return nil, fmt.Errorf("%s: query components: %w", shelly.label, err)
+		}
 
+		var response ShellyGetComponentsResponse
+		err = json.NewDecoder(res.Body).Decode(&response)
+		if err != nil {
+			return nil, fmt.Errorf("%s: decode components: %w", shelly.label, err)
+		}
+
+		for _, component := range response.Components {
+			if strings.HasPrefix(component.Key, "switch") {
+				index, err := strconv.Atoi(strings.Split(component.Key, ":")[1])
+				if err != nil {
+					return nil, fmt.Errorf("%s: parse switch index: %w", shelly.label, err)
+				}
+				shelly.indexes = append(shelly.indexes, index)
+			}
+		}
+	}
 
 	query := fmt.Sprintf("http://%s/rpc/Shelly.GetDeviceInfo", shelly.Address)
 	res, err := http.Get(query)
@@ -118,10 +158,12 @@ func (s *Shelly) Transition(color *Color, transition time.Duration) error {
 		on = true
 	}
 
-	query := fmt.Sprintf("http://%s/rpc/Switch.Set?id=%d&on=%t", s.Address, s.index, on)
-	_, err := http.Get(query)
-	if err != nil {
-		return fmt.Errorf("%s: set power state: %w", s.label, err)
+	for _, index := range s.indexes {
+		query := fmt.Sprintf("http://%s/rpc/Switch.Set?id=%d&on=%t", s.Address, index, on)
+		_, err := http.Get(query)
+		if err != nil {
+			return fmt.Errorf("%s: set power state: %w", s.label, err)
+		}
 	}
 
 	return nil
@@ -203,5 +245,5 @@ func (s *Shelly) Label() string {
 }
 
 func (s *Shelly) String() string {
-	return fmt.Sprintf("Shelly %s %s", s.Hardware, s.Firmware)
+	return fmt.Sprintf("Shelly %s %s #%d", s.Hardware, s.Firmware, len(s.indexes))
 }
