@@ -45,6 +45,17 @@ type Shelly struct {
 	index    int // index of attached port on device
 }
 
+type ShellyDeviceInfo struct {
+	ID         string `json:"id"`
+	MAC        string `json:"mac"`
+	Model      string `json:"model"`
+	Generation int    `json:"gen"`
+	FirmwareID string `json:"fw_id"`
+	Version    string `json:"ver"`
+	App        string `json:"app"`
+	Profile    string `json:"profile"`
+}
+
 type ShellyConfigResponse struct {
 	Device struct {
 		Name         string `json:"name"`
@@ -58,32 +69,6 @@ type ShellyConfigResponse struct {
 		Latitude  float64 `json:"lat"`
 		Longitude float64 `json:"lon"`
 	} `json:"location"`
-}
-
-type ShellyKVSResponse struct {
-	ETag  string `json:"etag"`
-	Value string `json:"value"`
-}
-
-func (r *ShellyKVSResponse) UnmarshalJSON(b []byte) error {
-	kvs := struct {
-		ETag  string `json:"etag"`
-		Value string `json:"value"`
-	}{}
-
-	err := json.Unmarshal(b, &kvs)
-	if err != nil {
-		return err
-	}
-
-	unescaped, err := url.QueryUnescape(kvs.Value)
-	if err != nil {
-		return fmt.Errorf("unescape value: %w", err)
-	}
-
-	r.ETag = kvs.ETag
-	r.Value = unescaped
-	return nil
 }
 
 type ShellySwitchStatusResponse struct {
@@ -108,31 +93,21 @@ func ConnectShelly(label, addr, mac string, deviceConfig map[string]interface{})
 		index:   cfg.Index,
 	}
 
-	query := fmt.Sprintf("http://%s/rpc/Sys.GetConfig?id=0", shelly.Address)
+
+
+	query := fmt.Sprintf("http://%s/rpc/Shelly.GetDeviceInfo", shelly.Address)
 	res, err := http.Get(query)
 	if err != nil {
-		return nil, fmt.Errorf("%s: query config: %w", shelly.label, err)
+		return nil, fmt.Errorf("%s: query info: %w", shelly.label, err)
 	}
 
-	var config ShellyConfigResponse
-	err = json.NewDecoder(res.Body).Decode(&config)
+	var info ShellyDeviceInfo
+	err = json.NewDecoder(res.Body).Decode(&info)
 	if err != nil {
-		return nil, fmt.Errorf("%s: decode config: %w", shelly.label, err)
+		return nil, fmt.Errorf("%s: decode info: %w", shelly.label, err)
 	}
-	shelly.Firmware = config.Device.Firmware
-
-	query = fmt.Sprintf("http://%s/rpc/KVS.Get?key=model", shelly.Address)
-	res, err = http.Get(query)
-	if err != nil {
-		return nil, fmt.Errorf("%s: query model: %w", shelly.label, err)
-	}
-
-	var kvs ShellyKVSResponse
-	err = json.NewDecoder(res.Body).Decode(&kvs)
-	if err != nil {
-		return nil, fmt.Errorf("%s: decode model: %w", shelly.label, err)
-	}
-	shelly.Hardware = kvs.Value
+	shelly.Firmware = info.FirmwareID
+	shelly.Hardware = info.App
 
 	return shelly, nil
 }
