@@ -2,11 +2,11 @@ package device
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"math"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -158,15 +158,25 @@ func (s *Shelly) Transition(color *Color, transition time.Duration) error {
 		on = true
 	}
 
+	requests := make(chan error)
 	for _, index := range s.indexes {
-		query := fmt.Sprintf("http://%s/rpc/Switch.Set?id=%d&on=%t", s.Address, index, on)
-		_, err := http.Get(query)
-		if err != nil {
-			return fmt.Errorf("%s: set power state: %w", s.label, err)
-		}
+		go func(id int) {
+			query := fmt.Sprintf("http://%s/rpc/Switch.Set?id=%d&on=%t", s.Address, id, on)
+			_, err := http.Get(query)
+			if err != nil {
+				err = fmt.Errorf("%s: set power state: %w", s.label, err)
+			}
+			requests <- err
+		}(index)
 	}
 
-	return nil
+	var errs []error
+	for range s.indexes {
+		errs = append(errs, <-requests)
+	}
+	close(requests)
+
+	return errors.Join(errs...)
 }
 
 func (s *Shelly) StatusHandler(w http.ResponseWriter, r *http.Request) {
