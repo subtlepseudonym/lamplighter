@@ -21,8 +21,9 @@ import (
 const (
 	DefaultConfigPath = "config/lamp.cfg"
 
-	listenAddr   = ":9000"
-	sunsetPrefix = "@sunset"
+	listenAddr    = ":9000"
+	sunrisePrefix = "@sunrise"
+	sunsetPrefix  = "@sunset"
 )
 
 var (
@@ -178,7 +179,22 @@ func main() {
 		var schedule cron.Schedule
 		var err error
 
-		if strings.HasPrefix(job.Schedule, sunsetPrefix) {
+		if strings.HasPrefix(job.Schedule, sunrisePrefix) {
+			s := strings.Split(job.Schedule, " ")
+
+			var duration time.Duration
+			if len(s) > 1 {
+				duration, err = time.ParseDuration(s[1])
+				if err != nil {
+					log.Printf("ERR: parse sunrise offset: %s", err)
+					continue
+				}
+			}
+			schedule = lamplighter.SunriseSchedule{
+				Location: cfg.Location,
+				Offset:   duration,
+			}
+		} else if strings.HasPrefix(job.Schedule, sunsetPrefix) {
 			s := strings.Split(job.Schedule, " ")
 
 			var duration time.Duration
